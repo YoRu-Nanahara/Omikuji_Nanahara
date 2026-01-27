@@ -20,14 +20,18 @@ const STORAGE_KEY = "omikuji-last-date";
 
 /* ===== 手機縮放 ===== */
 function scaleStage() {
-  const stage = document.querySelector(".stage");
-  const scale = Math.min(
-    window.innerWidth / 1080,
-    window.innerHeight / 1920
-  );
-  stage.style.transform = `scale(${scale})`;
+    const stage = document.querySelector(".stage");
+
+    const scaleX = window.innerWidth / 1080;
+    const scaleY = window.innerHeight / 1920;
+    const scale = Math.min(scaleX, scaleY);  // 取最小值 → 保證完整顯示
+
+    stage.style.transform = `scale(${scale})`;
 }
+
 window.addEventListener("resize", scaleStage);
+window.addEventListener("load", scaleStage);
+
 
 /* ===== 日期工具 ===== */
 function getTodayString() {

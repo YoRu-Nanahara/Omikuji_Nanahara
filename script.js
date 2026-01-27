@@ -35,23 +35,39 @@ window.addEventListener("load", scaleStage);
 
 
 /* ===== 日期工具 ===== */
-function getTodayString() {
-  const today = new Date();
-  return today.toISOString().split("T")[0];
+/* ===== 計算今天早上 6 點時間戳 ===== */
+function getToday6AM() {
+  const now = new Date();
+  const today6AM = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    6, 0, 0, 0
+  );
+
+  // 如果現在時間在 0:00~5:59 → 認為今天還沒到6點，回到前一天的6點
+  if (now < today6AM) {
+    today6AM.setDate(today6AM.getDate() - 1);
+  }
+
+  return today6AM.getTime(); // 回傳 timestamp
 }
+
 
 /* ===== 檢查是否抽過 ===== */
 function checkIfDrawnToday() {
-  const lastDate = localStorage.getItem(STORAGE_KEY);
-  const today = getTodayString();
+  const lastDrawTime = localStorage.getItem(STORAGE_KEY); // timestamp
+  const resetTime = getToday6AM();
 
-  if (lastDate === today) {
+  if (lastDrawTime && Number(lastDrawTime) >= resetTime) {
     drawn = true;
     drawBtn.style.animation = "none";
     drawBtn.style.filter = "grayscale(100%)";
     drawBtn.style.pointerEvents = "none";
   }
 }
+
+
 
 /* ===== 輪播動畫 ===== */
 function startShuffle() {
@@ -136,7 +152,8 @@ omikuji.src = images[resultIndex];
   drawBtn.style.filter = "grayscale(100%)";
   drawBtn.style.pointerEvents = "none";
 
-  localStorage.setItem(STORAGE_KEY, getTodayString());
+  localStorage.setItem(STORAGE_KEY, Date.now());
+
 });
 
 /* ===== 初始化 ===== */

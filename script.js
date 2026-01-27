@@ -4,6 +4,7 @@ const drawBtn = document.getElementById("drawBtn");
 let bgm, drawSound;
 let shuffleInterval;
 let drawn = false;
+let currentIndex = 0; // ⭐ 記住目前顯示的是哪一張籤
 
 const images = [
   "images/omikuji1.png",
@@ -14,77 +15,88 @@ const images = [
   "images/omikuji6.png",
   "images/omikuji7.png"
 ];
-let currentIndex = 0; // ⭐ 記住目前顯示的是哪一張籤
 
 const weights = [16, 35, 12, 1, 1, 15, 15];
-const STORAGE_KEY = "omikuji-last-date";
+const STORAGE_KEY = "omikuji-last-date"; // 抽籤時間
+const RESULT_KEY = "omikuji-result";      // 抽籤結果
 
 /* ===== 手機縮放 ===== */
 function scaleStage() {
-    const stage = document.querySelector(".stage");
-
-    const scaleX = window.innerWidth / 1080;
-    const scaleY = window.innerHeight / 1920;
-    const scale = Math.min(scaleX, scaleY);  // 取最小值 → 保證完整顯示
-
-    stage.style.transform = `scale(${scale})`;
+  const stage = document.querySelector(".stage");
+  const scale = Math.min(
+    window.innerWidth / 1080,
+    window.innerHeight / 1920
+  );
+  stage.style.transform = `scale(${scale})`;
 }
-
 window.addEventListener("resize", scaleStage);
 window.addEventListener("load", scaleStage);
 
-
-/* ===== 日期工具 ===== */
 /* ===== 計算今天早上 6 點時間戳 ===== */
-function getToday6AM() {
+function getToday6AMString() {
   const now = new Date();
-  const today6AM = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    6, 0, 0, 0
-  );
+  let day = now.getDate();
+  let month = now.getMonth();
+  let year = now.getFullYear();
 
-  // 如果現在時間在 0:00~5:59 → 認為今天還沒到6點，回到前一天的6點
-  if (now < today6AM) {
-    today6AM.setDate(today6AM.getDate() - 1);
+  // 0:00~5:59 → 前一天
+  if (now.getHours() < 6) {
+    const yesterday = new Date(year, month, day - 1);
+    day = yesterday.getDate();
+    month = yesterday.getMonth();
+    year = yesterday.getFullYear();
   }
 
-  return today6AM.getTime(); // 回傳 timestamp
+  return `${year}-${month + 1}-${day}`; // 字串比較安全
 }
 
 
-/* ===== 檢查是否抽過 ===== */
+/* ===== 檢查是否抽過並控制輪播 ===== */
 function checkIfDrawnToday() {
-  const lastDrawTime = localStorage.getItem(STORAGE_KEY); // timestamp
-  const resetTime = getToday6AM();
+  const lastDrawDay = localStorage.getItem(STORAGE_KEY);
+  const today6AMString = getToday6AMString();
 
-  if (lastDrawTime && Number(lastDrawTime) >= resetTime) {
+  if (lastDrawDay === today6AMString) {
+    // 已抽過，顯示結果
     drawn = true;
+    const savedResult = localStorage.getItem(RESULT_KEY);
+    if (savedResult !== null) {
+      omikuji.src = images[Number(savedResult)];
+      omikuji.classList.add("glow");
+    }
     drawBtn.style.animation = "none";
     drawBtn.style.filter = "grayscale(100%)";
     drawBtn.style.pointerEvents = "none";
+    stopShuffle();
+  } else {
+    drawn = false;
+    drawBtn.style.pointerEvents = "auto";
+    drawBtn.style.filter = "none";
+    drawBtn.style.animation = "pulse 1.6s ease-in-out infinite";
+    startShuffle();
   }
 }
-
 
 
 /* ===== 輪播動畫 ===== */
 function startShuffle() {
+  if (shuffleInterval) clearInterval(shuffleInterval);
+
   shuffleInterval = setInterval(() => {
     let rand;
     do {
       rand = Math.floor(Math.random() * images.length);
-    } while (rand === currentIndex); // 不跟現在一樣
-
+    } while (rand === currentIndex);
     currentIndex = rand;
     omikuji.src = images[rand];
-  }, 160);
+  }, 120);
 }
 
-
 function stopShuffle() {
-  clearInterval(shuffleInterval);
+  if (shuffleInterval) {
+    clearInterval(shuffleInterval);
+    shuffleInterval = null;
+  }
 }
 
 /* ===== 加權隨機 ===== */
@@ -142,19 +154,20 @@ drawBtn.addEventListener("click", () => {
   stopShuffle();
   playDrawSound();
 
- const resultIndex = getWeightedResult();
-currentIndex = resultIndex; // ⭐ 同步目前籤圖
-omikuji.src = images[resultIndex];
-
+  const resultIndex = getWeightedResult();
+  currentIndex = resultIndex;
+  omikuji.src = images[resultIndex];
   omikuji.classList.add("glow");
+
+  // 改存字串而非 timestamp
+  localStorage.setItem(STORAGE_KEY, getToday6AMString());
+  localStorage.setItem(RESULT_KEY, resultIndex);
 
   drawBtn.style.animation = "none";
   drawBtn.style.filter = "grayscale(100%)";
   drawBtn.style.pointerEvents = "none";
-
-  localStorage.setItem(STORAGE_KEY, Date.now());
-
 });
+
 
 /* ===== 初始化 ===== */
 window.addEventListener("load", () => {
@@ -162,10 +175,13 @@ window.addEventListener("load", () => {
   drawSound = document.getElementById("drawSound");
 
   scaleStage();
-  checkIfDrawnToday();
   playBGMWithFadeIn();
-  startShuffle();
+  checkIfDrawnToday();
 });
+
+
+
+
 
 /* ===== 櫻花粒子系統 ===== */
 let windTime = 0;

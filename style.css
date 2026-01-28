@@ -1,3 +1,41 @@
+#loadingScreen {
+  position: fixed;
+  inset: 0;
+  background: black;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  z-index: 9999;
+}
+
+.loading-bg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.loading-sakura {
+  width: 120px;
+  animation: spin 3.5s linear infinite;
+  z-index: 2;
+}
+
+#loadingText {
+  margin-top: 20px;
+  color: white;
+  font-size: 20px;
+  letter-spacing: 2px;
+  z-index: 2;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+
 /* 全螢幕黑底，保持置中 */
 body, html {
     margin: 0;

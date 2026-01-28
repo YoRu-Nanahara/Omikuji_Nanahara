@@ -1,3 +1,62 @@
+/* ===== Loading 預載系統 ===== */
+const loadingScreen = document.getElementById("loadingScreen");
+const loadingText = document.getElementById("loadingText");
+
+// 要預載的所有素材（包含你的 loading 圖自己）
+const assets = [
+  "images/loading-bg.jpg",
+  "images/loading-sakura.png",
+  "images/bg.jpg",
+  "images/characters.png",
+  "images/draw-btn.png",
+  "images/omikuji1.png",
+  "images/omikuji2.png",
+  "images/omikuji3.png",
+  "images/omikuji4.png",
+  "images/omikuji5.png",
+  "images/omikuji6.png",
+  "images/omikuji7.png",
+  "images/sakura1.png",
+  "images/sakura2.png",
+  "images/sakura3.png",
+  "audio/bgm.mp3",
+  "audio/draw.mp3"
+];
+
+let preloadLoadedCount = 0;
+
+function updateLoadingProgress() {
+  preloadLoadedCount++;
+  const percent = Math.floor((preloadLoadedCount / assets.length) * 100);
+  loadingText.textContent = `Loading... ${percent}%`;
+
+  if (preloadLoadedCount === assets.length) {
+    setTimeout(() => {
+      loadingScreen.style.opacity = "0";
+      loadingScreen.style.transition = "opacity 1.5s ease";
+      setTimeout(() => {
+        loadingScreen.style.display = "none";
+      }, 1500);
+    }, 1000);
+  }
+}
+
+// 開始預載
+assets.forEach(src => {
+  const ext = src.split(".").pop().toLowerCase();
+
+  if (ext === "mp3") {
+    const audio = new Audio();
+    audio.src = src;
+    audio.addEventListener("canplaythrough", updateLoadingProgress, { once: true });
+  } else {
+    const img = new Image();
+    img.src = src;
+    img.onload = updateLoadingProgress;
+  }
+});
+
+
 const omikuji = document.getElementById("omikuji");
 const drawBtn = document.getElementById("drawBtn");
 
@@ -203,13 +262,13 @@ let petals = [];
 const PETAL_COUNT = 25; // 數量可調
 
 // 載入花瓣圖片
-let loadedCount = 0;
+let sakuraloadedCount = 0;
 sakuraImages.forEach(src => {
   const img = new Image();
   img.src = src;
   img.onload = () => {
-    loadedCount++;
-    if (loadedCount === sakuraImages.length) initPetals();
+    sakuraloadedCount++;
+    if (sakuraloadedCount === sakuraImages.length) initPetals();
   };
   loadedPetals.push(img);
 });

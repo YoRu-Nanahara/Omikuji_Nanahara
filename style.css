@@ -196,7 +196,7 @@
 #menuWelcomeText {
   position: absolute;
   left: 50%;
-  bottom: 120px;
+  bottom: 140px;
 
   transform: translateX(-50%);
   font-size: 60px;
@@ -243,7 +243,7 @@ body.night-mode #menuWelcomeText {
 #menuLogo {
   position: absolute;
   left: 50%;
-  bottom: 280px;   /* 比歡迎文字高一點（120 + 約 90）可微調 */
+  bottom: 40px;   /* 比歡迎文字高一點（120 + 約 90）可微調 */
 
   transform: translateX(-50%);
   z-index: 5;
@@ -254,7 +254,7 @@ body.night-mode #menuWelcomeText {
 }
 
 #menuLogo img {
-  width: 220px;   /* LOGO 大小可調 */
+  width: 500px;   /* LOGO 大小可調 */
   height: auto;
   display: block;
 }

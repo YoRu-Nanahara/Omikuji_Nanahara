@@ -1307,3 +1307,13 @@ body.night-mode #omikujiScreen .night { opacity: 1; }
 body.night-mode .menu-background.day { display: none; }
 body.night-mode .menu-background.night { display: block; }
 
+/* ✅ 關掉手機點擊時的藍色高亮（iOS/Android/部分 WebView） */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 更保守：只套在可點擊元素上 */
+button, a, img, .menu-btn, .omamori-arrow, .omamori-finish, .ui-btn-menu-topright, #drawBtn {
+  -webkit-tap-highlight-color: transparent;
+}
+

@@ -1267,15 +1267,25 @@ function waitForImage(img) {
       ctx.drawImage(bg, 0, 0, OUT_W, OUT_H);
 
       // 御守尺寸/位置（可調）
-      const omW = 600;
-      const omX = Math.round((OUT_W - omW) / 2);
-      const omY = 200;
+const BASE_W = 600;           // 你原本的設計寬
+const BASE_TOP_H = 453;
+const BASE_BOTTOM_H = 342;
+const BASE_KNOT_H = 197;
+const BASE_KNOT_Y_OFFSET = 10;
 
-      const TOP_H = 453;
-      const BOTTOM_H = 342;
-      const KNOT_H = 197;
-      const KNOT_Y_OFFSET = 10;
-      const omH = TOP_H + BOTTOM_H; // 795
+const scale = 1.05;            // ✅ 只調這個：0.95、1.05、1.12...
+
+const omW = Math.round(BASE_W * scale);
+const TOP_H = Math.round(BASE_TOP_H * scale);
+const BOTTOM_H = Math.round(BASE_BOTTOM_H * scale);
+const KNOT_H = Math.round(BASE_KNOT_H * scale);
+const KNOT_Y_OFFSET = Math.round(BASE_KNOT_Y_OFFSET * scale);
+
+const omH = TOP_H + BOTTOM_H;
+
+const omX = Math.round((OUT_W - omW) / 2);
+const omY = 165;              // ✅ 位置照樣可以再調
+
 
       // 合成 offscreen
       const combined = document.createElement("canvas");
@@ -1292,12 +1302,14 @@ function waitForImage(img) {
       cctx.drawImage(knot, 0, KNOT_Y_OFFSET, omW, KNOT_H);
 
       // 外輪廓發光 + 本體
-      drawCombinedWithOutlineGlow(ctx, combined, omX, omY, omW, omH, {
-        layers: [
-          { color: "rgb(255, 217, 238)", blur: 78, strength: 1 },
-          { color: "rgb(255, 220, 155)", blur: 48, strength: 3 },
-        ],
-      });
+drawCombinedWithOutlineGlow(ctx, combined, omX, omY, omW, omH, {
+  layers: [
+    { color: "rgb(255, 217, 238)", blur: 78, strength: 1 },
+    { color: "rgb(255, 220, 155)", blur: 30, strength: 3 },
+  ],
+});
+
+
 
       // 顯示 modal
       resultModal.style.display = "none";

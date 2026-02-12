@@ -656,7 +656,7 @@ html, body {
 
 /* 只動 opacity，不動 filter（效能很好） */
 @keyframes omamoriGlowBreath{
-  0%, 100% { opacity: 0.72; }
+  0%, 100% { opacity: 0.5; }
   50%      { opacity: 1.00; }
 }
 

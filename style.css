@@ -194,51 +194,13 @@
   height: auto;
 }
 
-/* ===== Menu 底部歡迎文字 ===== */
-#menuWelcomeText {
-  position: absolute;
-  left: 50%;
-  bottom: 140px;
-
-  transform: translateX(-50%);
-  font-size: 45px;
-  letter-spacing: 4px;
-  font-family: 'Cinzel', serif;
-  text-align: center;
-
-  z-index: 5;
-  pointer-events: none;
-
-  opacity: 0;
-  transition: opacity 1.5s ease, color 0.6s ease;
-}
-
-/* ☀️ 白天（預設） */
-body:not(.night-mode) #menuWelcomeText {
-  color: #ffffff;
-}
-
-/* 🌙 夜晚 */
-body.night-mode #menuWelcomeText {
-  color: rgba(255, 245, 235, 0.9);
-}
-
-
-/* ✅ 只要 menuScreen 顯示，就讓它出現 */
-#menuScreen:not(.hidden) #menuWelcomeText {
-  opacity: 1;
-  text-shadow:
-    0 0 8px rgba(255, 210, 210, 0.6),
-    0 0 18px rgba(255, 220, 180, 0.4);
-}
-
 
 
 /* ===== Menu LOGO ===== */
 #menuLogo {
   position: absolute;
   left: 50%;
-  bottom: 70px;   /* 比歡迎文字高一點（120 + 約 90）可微調 */
+  bottom: 75px;   /* 比歡迎文字高一點（120 + 約 90）可微調 */
 
   transform: translateX(-50%);
   z-index: 5;
@@ -1317,3 +1279,13 @@ button, a, img, .menu-btn, .omamori-arrow, .omamori-finish, .ui-btn-menu-toprigh
   -webkit-tap-highlight-color: transparent;
 }
 
+/* ✅ 防止圖片長按被選取或拖曳 */
+img {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+button {
+  -webkit-user-select: none;
+  user-select: none;
+}

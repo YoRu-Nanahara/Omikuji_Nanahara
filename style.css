@@ -11,6 +11,17 @@
   z-index: 9999;
 }
 
+/* ===== Screen 管理（結構層）===== */
+.screen {
+  position: absolute;
+  inset: 0;
+}
+
+.hidden {
+  display: none;
+}
+
+
 .loading-bg {
   position: absolute;
   width: 100%;
@@ -39,6 +50,7 @@
 
 /* 導覽頁 */
 #introScreen {
+  display: none;
   position: absolute;
   left: 50%;
   top: 50%;
@@ -89,58 +101,253 @@
 
 
 
-
-
-/* 全螢幕黑底，保持置中 */
-body, html {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    width: 100%;
-    overflow: hidden;
-    background: black;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+#menuScreen {
+  position: absolute;
+  inset: 0;
 }
 
-/* 螢幕容器：置中、固定 viewport */
+
+.menu-background {
+  position: absolute;
+  inset: 0;              /* 全螢幕 */
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  z-index: 1;
+}
+
+/* 白天背景 */
+.menu-background.day {
+  background-image: url("images/menu-bg.jpg");
+}
+
+/* 夜晚背景 */
+.menu-background.night {
+  background-image: url("images/menu-bg-night.jpg");
+}
+
+/* menu 按鈕呼吸動畫 */
+@keyframes menuPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03); /* 最大放大 3% */
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+#menuScreen {
+  opacity: 1;            /* 一開始就顯示 */
+}
+
+.menu-content {
+  opacity: 0;                  /* 初始完全透明 */
+  transform: translateY(20px); /* 往上 20px，製造浮動感 */
+  transition: opacity 1.5s ease, transform 1.5s ease;
+}
+
+.menu-content.show {
+  opacity: 1;                  /* 完全可見 */
+  transform: translateY(0);    /* 回到原本位置 */
+}
+
+
+.menu-content {
+  position: relative;     /* 讓 z-index 有效 */
+  z-index: 2;             /* 高於背景 */
+  width: 100%;
+  height: 100%;           /* 填滿整個 menuScreen */
+  display: flex;          /* 啟用 Flex */
+  flex-direction: column; /* 上下排列 header + buttons */
+  align-items: center;    /* 水平置中 */
+  justify-content: center; /* 垂直置中 */
+  padding-top: 40px;      /* ← 加這行讓整組往下 */
+}
+
+
+.menu-buttons {
+  display: flex;          /* 讓按鈕水平排列 */
+  flex-direction: column; /* 改成垂直排列 */
+  align-items: center;    /* 水平置中 */
+  gap: 20px;              /* 按鈕間距 */
+}
+
+.menu-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  width: 600px;           /* 按鈕寬度 */
+  height: auto;
+  animation: menuPulse 2s ease-in-out infinite; /* ← 呼吸動畫 */
+}
+
+.menu-btn img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ===== Menu 底部歡迎文字 ===== */
+/* ===== Menu 底部歡迎文字 ===== */
+#menuWelcomeText {
+  position: absolute;
+  left: 50%;
+  bottom: 120px;
+
+  transform: translateX(-50%);
+  font-family: 'Open Sans', sans-serif;
+  font-size: 60px;
+  letter-spacing: 3px;
+
+  text-align: center;
+
+  z-index: 5;
+  pointer-events: none;
+
+  opacity: 0;
+  transition: opacity 1.5s ease, color 0.6s ease;
+}
+
+/* ☀️ 白天（預設） */
+body:not(.night-mode) #menuWelcomeText {
+  color: #ffffff;
+}
+
+/* 🌙 夜晚 */
+body.night-mode #menuWelcomeText {
+  color: rgba(255, 245, 235, 0.9);
+}
+
+
+/* ✅ 只要 menuScreen 顯示，就讓它出現 */
+#menuScreen:not(.hidden) #menuWelcomeText {
+  opacity: 1;
+  text-shadow:
+    0 0 8px rgba(255, 210, 210, 0.6),
+    0 0 18px rgba(255, 220, 180, 0.4);
+}
+
+@keyframes welcomeFloat {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%      { transform: translateX(-50%) translateY(-6px); }
+}
+
+#menuWelcomeText {
+  animation: welcomeFloat 4s ease-in-out infinite;
+}
+
+
+
+
+
+
+#transitionDoors {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5000;
+}
+
+.door {
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  object-fit: cover; /* 或 contain，看你門圖想怎麼塞滿 */
+}
+
+.door.left  { left: 0;  transform: translateX(-100%); }
+.door.right { right: 0; transform: translateX(100%); }
+
+.door.show.left  { animation: doorLeftIn 0.5s forwards; }
+.door.show.right { animation: doorRightIn 0.5s forwards; }
+.door.hide.left  { animation: doorLeftOut 0.7s forwards; }
+.door.hide.right { animation: doorRightOut 0.7s forwards; }
+
+/* ✅ 門完全闔上後固定在中間，不會因為移除 show 而跳回畫面外 */
+.door.closed.left  { transform: translateX(0); }
+.door.closed.right { transform: translateX(0); }
+
+@keyframes doorLeftIn {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes doorRightIn {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+@keyframes doorLeftOut {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-100%); }
+}
+@keyframes doorRightOut {
+  from { transform: translateX(0); }
+  to   { transform: translateX(100%); }
+}
+
+
+
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: black;
+  overflow: hidden;
+}
+
+/* ✅ viewport：負責置中，黑邊自然出現 */
+#viewport {
+  position: fixed;
+  inset: 0;
+  background: black;
+  overflow: hidden; /* 保證超出只會被裁掉，黑邊自然留下 */
+}
+
+
+/* ✅ gameRoot：固定設計稿大小，只做 scale，不做 translate 置中 */
+#gameRoot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1080px;
+  height: 1920px;
+
+  /* ⚠️ 置中 + 縮放由同一個 transform 完成 */
+  transform: translate(-50%, -50%) scale(var(--scale, 1));
+  transform-origin: center center;
+
+  background: black;
+  overflow: hidden;
+}
+
+
+/* screen 都填滿舞台 */
 .screen {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  position: absolute;
+  inset: 0;
 }
 
-/* 設計稿舞台 */
-.stage {
-    position: relative;
-    width: 1080px;   /* 設計稿寬 */
-    height: 1920px;  /* 設計稿高 */
-    transform-origin: center center;
-}
+.hidden { display: none; }
 
-/* 背景建議改用 img，這樣 scale 也會跟舞台同步 */
-.bg {
-    position: absolute;
-    left: 540px;
-    top: 960px;
-    transform: translate(-50%, -50%);
-    width: 1080px;
-    height: 1920px;
-    z-index: 0;
-    pointer-events: none;
-}
 #sakura {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 1080px;   /* 與舞台設計稿等寬 */
-    height: 1920px;  /* 與舞台設計稿等高 */
-    pointer-events: none;  /* 不阻擋按鈕點擊 */
-    z-index: 1200;           /* 比背景高，比籤紙低 */
+  position: absolute;
+  inset: 0;
+  width: 1080px;
+  height: 1920px;
+  pointer-events: none;
+  z-index: 1200;
 }
+
+
+
 
 
 /* 包裝層控制飛走動畫，初始隱藏 */
@@ -198,6 +405,652 @@ body, html {
 }
 
 
+/* 御守製作背景 */
+#omamoriScreen .omamori-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;  /* 1080×1920 對上舞台會剛好，不會變形 */
+  z-index: 0;
+  pointer-events: none;
+  display: block;
+}
+
+/* ====== Omamori 排版骨架 ====== */
+
+/* omamoriScreen 背景你已有：#omamoriScreen .omamori-bg {...} */
+
+/* 所有御守物件的容器（跟舞台同大小） */
+#omamoriStage {
+  position: absolute;
+  inset: 0;
+}
+
+/*
+  ✅ 只要調這裡，就能讓「整個御守+按鈕+完成」上下移動
+  - 往上：數字變小（例如 320）
+  - 往下：數字變大（例如 420）
+*/
+:root {
+  --omamori-y: 200px;
+}
+
+/* 共用：御守三個部件 */
+.omamori-part {
+  position: absolute;
+  width: 600px;
+  left: 240px;         /* 540(舞台中心) - 300 = 240 */
+  display: block;
+  pointer-events: none;
+}
+
+/* 上半部 / 下半部貼合 */
+.omamori-part.top {
+  top: var(--omamori-y);
+  height: 453px;
+  z-index: 10;
+}
+
+.omamori-part.bottom {
+  top: calc(var(--omamori-y) + 453px);
+  height: 342px;
+  z-index: 10;
+}
+
+/* 蝴蝶結：蓋在上層、偏中上 */
+.omamori-part.knot {
+  top: calc(var(--omamori-y) + 10px);
+  height: 197px;
+  z-index: 20;
+}
+
+/* 左右按鈕（200x90） */
+.omamori-arrow {
+  position: absolute;
+  width: 200px;
+  height: 90px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  z-index: 30;
+}
+
+.omamori-arrow img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* X 位置：御守左右各留 40px */
+.omamori-arrow.left  { left: 30px; }
+.omamori-arrow.right { left: 850px; } 
+
+/*
+  三排按鈕 Y 位置：對齊各部件的視覺中心
+
+*/
+.omamori-arrow.row-knot {
+  top: calc(var(--omamori-y) + 60px);
+}
+
+.omamori-arrow.row-top {
+  top: calc(var(--omamori-y) + 330px);
+}
+
+.omamori-arrow.row-bottom {
+  top: calc(var(--omamori-y) + 590px);
+}
+
+/* 完成按鈕（600x295）：御守下方留一段距離 */
+.omamori-finish {
+  position: absolute;
+  width: 600px;
+  height: 295px;
+  left: 240px;
+  top: calc(var(--omamori-y) + 760px + 70px); 
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  z-index: 30;
+}
+
+.omamori-finish img {
+  width: 90%;
+  height: 90%;
+  display: block;
+}
+
+/* 觸控按壓回饋 */
+.omamori-arrow:active,
+.omamori-finish:active {
+  transform: scale(0.96);
+}
+
+/* ===== 御守部件切換：微彈跳提示（不影響定位）===== */
+
+#omamoriPreview .omamori-part-wrap {
+  position: absolute;
+  inset: 0;              /* 讓 wrapper 覆蓋舞台，不參與排版 */
+  pointer-events: none;  /* 不擋按鈕 */
+  z-index: 0;            /* 真正層級由 img 自己的 z-index 控制 */
+}
+
+/* 套在 wrapper 上，避免跟 img 的定位 transform 打架 */
+#omamoriPreview .omamori-part-wrap.pop {
+  animation: omamoriPartPop 220ms ease-out;
+}
+
+@keyframes omamoriPartPop {
+  0%   { transform: translateY(0) scale(1); }
+  40%  { transform: translateY(-8px) scale(1.03); }
+  70%  { transform: translateY(0) scale(0.99); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+
+/* ====== Omamori 按鈕動態 ====== */
+
+/* 1) 左右按鈕：微微平移（動畫套在 img，避免跟 :active 的 transform 打架） */
+@keyframes arrowDriftLeft {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(-10px); } /* 幅度可調：-6 ~ -14 */
+}
+
+@keyframes arrowDriftRight {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(10px); }  /* 幅度可調：6 ~ 14 */
+}
+
+/* 左按鈕 img：向左漂 */
+.omamori-arrow.left img {
+  animation: arrowDriftLeft 1.6s ease-in-out infinite;
+}
+
+/* 右按鈕 img：向右漂 */
+.omamori-arrow.right img {
+  animation: arrowDriftRight 1.6s ease-in-out infinite;
+}
+
+/* 2) 完成按鈕：原地呼吸（同樣套在 img） */
+@keyframes finishBreathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.03); } /* 幅度可調：1.02 ~ 1.06 */
+}
+
+.omamori-finish img {
+  /* 你原本是 90% 90%，保留，再加動畫 */
+  animation: finishBreathe 1.8s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+/* =========================
+   右上角：返回 Menu 按鈕（共用）
+========================= */
+.ui-btn-menu-topright {
+  position: absolute;
+  top: 14px;    /* 你想更貼邊可改 24px */
+  right: 20px;
+  width: 140px; /* 你也可以改 120/160 */
+  height: 138px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+   opacity: 80%;
+
+  z-index: 4999; /* 壓過角色/背景/御守，不壓 modal（modal 你是 20000） */
+}
+
+.ui-btn-menu-topright img{
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.ui-btn-menu-topright:active{
+  transform: scale(0.96);
+}
+
+/* ✅ 御守 focus（完成聚焦）時，右上角那顆先隱藏，避免跟你三顆 focus actions 重複 */
+#omamoriScreen.focus #btnOmamoriMenu {
+  display: none;
+}
+
+
+
+
+
+/* ====== Omamori 完成聚焦模式（暗幕 + 御守突出） ====== */
+
+#omamoriScreen {
+  position: absolute; /* 保險：明確讓它是定位元素 */
+  inset: 0;
+  z-index: 1301;
+}
+
+
+/* ✅ 外層 wrapper：只負責完成瞬間彈跳（不干涉內層漂浮） */
+#omamoriPreviewWrap {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  transform-origin: center center;
+}
+
+/* ✅ focus 時，把御守整包抬到黑幕上面 */
+#omamoriScreen.focus #omamoriPreviewWrap {
+  z-index: 60; /* > 40 (黑幕) */
+}
+
+
+/* 完成瞬間彈跳一次（外層） */
+@keyframes omamoriFinishPop {
+  0%   { transform: translateY(0) scale(1.00); }
+  35%  { transform: translateY(-10px) scale(1.05); }
+  65%  { transform: translateY(2px)  scale(1.02); }
+  100% { transform: translateY(0)    scale(1.00); }
+}
+
+/* 觸發 class */
+#omamoriScreen.focus .omamori-finish-pop {
+  animation: omamoriFinishPop 380ms ease-out both;
+}
+
+
+/* 御守預覽 wrapper：平常不做事，只給完成時 transform 用 */
+#omamoriPreview {
+  position: absolute;
+  inset: 0;
+  z-index: 20;            /* 平常跟部件差不多層 */
+  transform-origin: center center;
+  transition: transform 280ms ease, filter 280ms ease;
+}
+
+/* 暗幕：只暗「御守畫面內的東西」，不會影響整個網站其他 screen */
+#omamoriScreen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.80); /* 你想更暗可改 0.55 */
+  opacity: 0;
+  transition: opacity 280ms ease;
+  pointer-events: none;
+  z-index: 40; /* 介於背景與御守之間/之上，用來壓暗按鈕與背景 */
+}
+
+/* 聚焦狀態 class：我們等一下用 JS 加在 #omamoriScreen 上 */
+#omamoriScreen.focus::before {
+  opacity: 1;
+}
+
+/* 聚焦時：御守放大 + 發光（多層 drop-shadow 疊加會很有「神聖感」） */
+#omamoriScreen.focus #omamoriPreview {
+  z-index: 60;
+
+  /* 用動畫取代固定 transform/filter */
+  animation:
+    omamoriFloat 2.2s ease-in-out infinite,
+    omamoriGlowPulse 2.4s ease-in-out infinite;
+
+  /* 讓動畫更柔順 */
+  will-change: transform, filter;
+}
+
+
+/* 聚焦時：把左右鍵與完成鍵「淡出 + 不能點」讓視覺更乾淨 */
+#omamoriScreen.focus .omamori-arrow,
+#omamoriScreen.focus .omamori-finish {
+  opacity: 0;          /* 你想完全消失就改 0 */
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+
+/* 可選：聚焦時把飄落櫻花稍微變淡（不是必須）
+   注意：#sakura 在整個舞台上層，若你覺得它干擾，就打開這段
+*/
+/*
+#omamoriScreen.focus ~ #sakura,
+#omamoriScreen.focus #sakura {
+  opacity: 0.35;
+}
+*/
+
+/* ====== 完成後：御守漂浮 + 發光起伏 ====== */
+
+@keyframes omamoriFloat {
+  0%, 100% { transform: translateY(0) scale(1.06); }
+  50%      { transform: translateY(-14px) scale(1.06); } /* 漂浮高度可調：-8 ~ -18 */
+}
+
+@keyframes omamoriGlowPulse {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 10px rgba(255, 230, 180, 0.45))
+      drop-shadow(0 0 22px rgba(255, 215, 120, 0.35))
+      drop-shadow(0 0 38px rgba(255, 255, 255, 0.15));
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 14px rgba(255, 230, 180, 0.70))
+      drop-shadow(0 0 30px rgba(255, 215, 120, 0.55))
+      drop-shadow(0 0 55px rgba(255, 255, 255, 0.28));
+  }
+}
+
+
+/* ====== Omamori：角色與對話框 ====== */
+
+#omamoriDialogue {
+  position: absolute;
+  inset: 0;
+  z-index: 35; /* 背景(0) < 御守(10~20) < 按鈕(30)；這裡放在按鈕之上或附近都可 */
+  pointer-events: none; /* 先不吃點擊；之後要點角色再打開 */
+}
+
+/* 共用：角色容器 */
+#omamoriDialogue .npc {
+  position: absolute;
+  bottom: 170px; /* 離底部一點點，避免貼邊 */
+  width: 410px;
+  height: 432px;
+}
+
+/* 左右位置：各留一點邊距 */
+#omamoriDialogue .npc.left  { left: 40px; }
+#omamoriDialogue .npc.right { right: 40px; }
+
+/* 角色圖本體 */
+#omamoriDialogue .npc-img {
+  width: 410px;
+  height: 432px;
+  display: block;
+}
+
+/* 對話框容器：放在角色「下方但稍微蓋到角色」 */
+#omamoriDialogue .bubble {
+  position: absolute;
+  left: 50%;
+  bottom: -110px;            /* 往下壓一點；負值代表會蓋到角色 */
+  transform: translateX(-50%);
+  width: 495px;
+  height: 165px;
+}
+
+/* 對話框圖片 */
+#omamoriDialogue .bubble-img {
+  width: 495px;
+  height: 195px;
+  display: block;
+}
+
+/* 對話文字：疊在氣泡上 */
+#omamoriDialogue .bubble-text {
+  position: absolute;
+  left: 50px;
+  right: 40px;
+  top: 36px;
+
+  text-align: left;
+  direction: ltr;
+  unicode-bidi: plaintext;
+
+  font-size: 22px;
+  line-height: 1.3;
+  color: rgb(155, 86, 98);
+  font-family: 'Open Sans', sans-serif;
+
+  word-break: break-word;
+
+  user-select: none;
+  pointer-events: none;
+}
+
+/* 角色呼吸：放在 wrapper 上，避免跟彈跳搶 transform */
+#omamoriDialogue .npc-breathe {
+  display: inline-block;            /* 讓 transform 生效 */
+  transform-origin: center bottom;  /* 從腳底呼吸比較自然 */
+  animation: npcBreathe 3s ease-in-out infinite;
+}
+
+/* 你的呼吸 keyframes（如果你已有同名就沿用） */
+@keyframes npcBreathe {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.015); }
+  100% { transform: scale(1); }
+}
+
+
+/* ===== Omamori 對話框文字調整 ===== */
+
+
+
+/* 彈跳動畫：放在 img 上，跟呼吸分離 */
+#omamoriDialogue .npc-img {
+  display: block;
+  transform-origin: center bottom;
+}
+
+/* 彈跳 keyframes（你原本那套可留） */
+@keyframes npcPop {
+  0%   { transform: translateY(0) scale(1); }
+  30%  { transform: translateY(-6px) scale(1.03); }
+  60%  { transform: translateY(0) scale(0.99); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* 觸發彈跳 class */
+#omamoriDialogue .npc-img.npc-pop {
+  animation: npcPop 260ms ease-out;
+}
+
+/* ✅ 完成聚焦後的三顆按鈕（預設隱藏） */
+#omamoriFocusActions {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+
+  /* 放在御守正下方：453 + 342 = 795
+     你之前完成按鈕 top 是 +820+70，這裡我們先用 +820+55 當作按鈕列位置（可微調） */
+  top: calc(var(--omamori-y) + 820px + 270px);
+
+  display: flex;
+  gap: 120px;
+  z-index: 9999;        /* 確保在暗幕與御守光暈之上 */
+  pointer-events: auto;
+}
+
+/* hidden 就不顯示 */
+#omamoriFocusActions.hidden {
+  display: none;
+}
+
+#omamoriFocusActions .focus-btn {
+  width: 140px;
+  height: 138px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+#omamoriFocusActions .focus-btn img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#omamoriFocusActions .focus-btn:active {
+  transform: scale(0.96);
+}
+
+/* ✅ 聚焦時：三顆按鈕微微發光（不閃爍、無動畫） */
+#omamoriScreen.focus #omamoriFocusActions .focus-btn img {
+  /* 這裡用固定 drop-shadow，達到「柔光」但不會跳動 */
+  filter:
+    drop-shadow(0 0 10px rgb(255, 255, 255, 0.5))
+    drop-shadow(0 0 22px rgb(255, 237, 237, 0.5));
+  
+  /* 讓畫面更乾淨：稍微提亮一點點（可選） */
+  /* filter: ... brightness(1.02);  ← 如果你想要更亮可打開 */
+  
+  transition: filter 160ms ease, transform 120ms ease;
+}
+
+/* ✅ 觸控按壓：稍微更亮 + 微縮（你原本 focus-btn:active 有縮放，這裡補光） */
+#omamoriScreen.focus #omamoriFocusActions .focus-btn:active img {
+  filter:
+    drop-shadow(0 0 12px rgba(255, 255, 255, 0.5))
+    drop-shadow(0 0 28px rgb(255, 237, 237, 0.5));
+}
+
+/* （可選）桌機 hover：也稍微更亮一點點 */
+@media (hover: hover) and (pointer: fine) {
+  #omamoriScreen.focus #omamoriFocusActions .focus-btn:hover img {
+    filter:
+      drop-shadow(0 0 12px rgba(255, 255, 255, 0.5))
+      drop-shadow(0 0 28px rgba(255, 237, 237, 0.5));
+    transform: scale(1.02);
+  }
+}
+
+
+
+/* ✅ Perfect 圖（完成聚焦才出現） */
+#omamoriPerfect {
+  position: absolute;
+  left: 0;
+  width: 1080px;
+  height: 189px;
+  display: block;
+
+  /* 放在三顆按鈕正上方（你已經把按鈕往下騰空間）
+     如果你想更貼近御守/按鈕，只要調最後的 10px */
+  top: calc(var(--omamori-y) + 820px + 200px - 189px - 5px);
+
+  /* 預設隱藏 */
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  pointer-events: none;
+
+  /* 層級：要在暗幕之上，也要在御守附近，但不一定要高過按鈕 */
+  z-index: 70;
+
+  transition: opacity 260ms ease, transform 260ms ease, filter 260ms ease;
+}
+
+/* ✅ focus 先不立刻出現，改由 perfect-show 控制 */
+#omamoriScreen.focus #omamoriPerfect {
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  animation: none;
+}
+
+/* ✅ Perfect 彈跳（一次） */
+@keyframes omamoriPerfectPop {
+  0%   { transform: translateY(12px) scale(0.92); opacity: 0; }
+  55%  { transform: translateY(-6px) scale(1.04); opacity: 1; }
+  80%  { transform: translateY(2px) scale(0.99); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+#omamoriScreen.focus.perfect-show #omamoriPerfect {
+  opacity: 1;
+
+  /* ✅ 同時做：彈跳一次 + 持續發光（用逗號分開） */
+  animation:
+    omamoriPerfectPop 360ms ease-out both,
+    omamoriPerfectGlow 2.4s ease-in-out infinite;
+
+  will-change: filter, transform, opacity;
+}
+
+
+
+/* Perfect 專用發光（你也可以直接沿用 omamoriGlowPulse，但分開比較好調） */
+@keyframes omamoriPerfectGlow {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 10px rgba(255, 230, 180, 0.35))
+      drop-shadow(0 0 22px rgba(255, 215, 120, 0.25))
+      drop-shadow(0 0 38px rgba(255, 255, 255, 0.5));
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 14px rgba(255, 230, 180, 0.52))
+      drop-shadow(0 0 30px rgba(255, 215, 120, 0.47))
+      drop-shadow(0 0 55px rgba(255, 255, 255, 0.10));
+  }
+}
+
+
+/* ✅ 截圖舞台：平常放很下面、不吃事件、不影響畫面 */
+#omamoriCaptureStage{
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 976px;
+  height: 1814px;
+  overflow: hidden;
+
+  /* 讓它不會被看到：放到最底層 */
+  z-index: -9999;
+  pointer-events: none;
+
+  /* 不要用 visibility:hidden（會讓 filter / html2canvas 支援變差） */
+  opacity: 0; /* 平常不可見 */
+}
+
+
+
+/* 底圖鋪滿 */
+#omamoriCaptureBg {
+  position: absolute;
+  inset: 0;
+  width: 976px;
+  height: 1814px;
+  display: block;
+}
+
+/* 御守成品容器：之後你要調位置/大小就改這裡 */
+#omamoriCaptureOmamori {
+  position: absolute;
+
+  /* ✅ 先給你一個「中上方」的預設值（之後再微調） */
+  left: 50%;
+  top: 200px;
+  transform: translateX(-50%);
+
+  /* 你先用這個寬度，之後再調 */
+  width: 600px;
+  height: 795px; /* top453 + bottom342 = 795 */
+}
+
+/* 三張疊合（跟你主畫面一致） */
+#omamoriCaptureOmamori img {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  display: block;
+}
+
+#capTop    { top: 0; height: 453px; z-index: 10; }
+#capBottom { top: 453px; height: 342px; z-index: 10; }
+#capKnot   { top: 10px; height: 197px; z-index: 20; }
+#resultModal { z-index: 20000; }
+
+/* ✅ 截圖用御守發光（套在每張圖上，比套容器更穩） */
+#omamoriCaptureOmamori.cap-glow img{
+  filter:
+    drop-shadow(0 0 10px rgba(255, 230, 180, 0.70))
+    drop-shadow(0 0 26px rgba(255, 215, 120, 0.55))
+    drop-shadow(0 0 52px rgba(255, 255, 255, 0.22));
+}
+
+
+
 
 
 
@@ -213,6 +1066,19 @@ body, html {
     z-index: 2;
     transition: transform 0.3s ease, filter 0.3s ease;
 }
+
+/* ✅ 背景圖：一定要鋪滿舞台，並且在最底層 */
+.bg {
+  position: absolute;
+  inset: 0;              /* 等同 top:0 right:0 bottom:0 left:0 */
+  width: 100%;
+  height: 100%;
+  object-fit: cover;     /* 你想完整顯示可以改 contain，但通常背景用 cover */
+  z-index: 0;
+  pointer-events: none;
+  display: block;        /* 避免 img 的 inline 行為造成怪間隙 */
+}
+
 
 /* 👥 角色微呼吸動畫 */
 .characters {
@@ -289,7 +1155,7 @@ body, html {
   display: none;
   justify-content: center;
   align-items: center;
-  z-index: 5000;
+  z-index: 20000;
 }
 
 .modalContent {
@@ -337,13 +1203,16 @@ body, html {
 }
 
 /* 夜晚圖預設隱藏 */
-.night {
-  opacity: 0;
-  transition: opacity 1.5s ease-in-out;
-  pointer-events: none;
-}
+/* ✅ 白天圖預設顯示 */
+#omikujiScreen .day { opacity: 1; transition: opacity 1.5s ease-in-out; }
+body.night-mode #omikujiScreen .day { opacity: 0; pointer-events:none; }
 
-/* 當進入夜晚時顯示 */
-body.night-mode .night {
-  opacity: 1;
-}
+#omikujiScreen .night { opacity: 0; transition: opacity 1.5s ease-in-out; pointer-events:none; }
+body.night-mode #omikujiScreen .night { opacity: 1; }
+
+
+.menu-background.night { display: none; background-image: url("images/menu-bg-night.jpg"); }
+
+body.night-mode .menu-background.day { display: none; }
+body.night-mode .menu-background.night { display: block; }
+

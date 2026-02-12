@@ -4,72 +4,214 @@
 <link rel="icon" type="image/png" href="images/favicon.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>御神籤</title>
+  <title>Nanahara Shrine</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+  <!-- Loading 保持獨立，不縮放 -->
+  <div id="loadingScreen">
+    <img src="images/loading-bg.jpg" class="loading-bg">
+    <img src="images/loading-sakura.png" class="loading-sakura">
+    <div id="loadingText">Loading... 0%</div>
+  </div>
+
+  <!-- 這個是「螢幕容器」：負責置中 + 黑邊 -->
+  <div id="viewport">
+    <!-- 這個是「設計舞台」：固定 1080x1920，只做 scale -->
+    <div id="gameRoot">
+
+      <!-- 櫻花粒子：跟著舞台縮放 -->
+      <canvas id="sakura"></canvas>
+
+      <!-- 拉門：跟著舞台縮放 -->
+      <div id="transitionDoors">
+        <img src="images/door-left.jpg" class="door left" alt="">
+        <img src="images/door-right.jpg" class="door right" alt="">
+      </div>
+
+  <!-- 你的 modal 可以留 fixed（它要覆蓋整個 viewport） -->
+        <div id="resultModal">
+          <div class="modalContent">
+            <img id="resultImage" alt="你的御神籤結果">
+            <div class="modalButtons">
+              <img id="shareBtn" src="images/share-btn.png" alt="">
+              <img id="saveBtn" src="images/save-btn.png" alt="">
+              <img id="closeModal" src="images/close-btn.png" alt="">
+            </div>
+            
+          </div>
+        </div>
+
+      <!-- Menu：跟著舞台縮放 -->
+      <div id="menuScreen" class="screen hidden">
+        <div class="menu-background day"></div>
+        <div class="menu-background night"></div>
+
+        <div class="menu-content">
+          <div class="menu-buttons">
+            <button id="btnOmikuji" class="menu-btn">
+              <img src="images/menu-btn-omikuji.png" alt="">
+            </button>
+
+           <button id="btnOmamori" class="menu-btn">
+              <img src="images/menu-btn-omamori.png" alt="">
+            </button>
+          </div>
+        <div id="menuWelcomeText">Welcome to Nanahara Shrine</div>
+        </div>
+      </div>
+
+      <!-- Omikuji：也放進同一舞台 -->
+      <div id="omikujiScreen" class="screen hidden">
+
+        <!-- Omikuji Screen 內，任意位置都可（建議放在最底下結尾處） -->
+<button id="btnOmikujiMenu" class="ui-btn-menu-topright" type="button" aria-label="Back to Menu">
+  <img src="images/ui-btn-menu.png" alt="Back to Menu">
+</button>
+
+        
+        <!-- introScreen：如果你要它跟舞台縮放，就留在舞台內 -->
+        <div id="introScreen">
+          <img src="images/guide-bg.jpg" class="intro-bg" alt="">
+
+          <div id="introText">
+            <div>Welcome to Nanahara Shrine!</div>
+            <div>To celebrate Nanahara sisters' birthday, we are gathering blessings from </div>
+            <div>all around the world.</div>
+            <div>Tap the birthday card below to send your wishes...</div>
+            <div>Come and see what luck awaits you today!</div>
+          </div>
+
+          <div id="blessingWrapper">
+            <img id="blessingCard" src="images/Card.png" alt="">
+          </div>
+        </div>
+
+        <!-- 抽籤畫面元素（保持你原本定位） -->
+        <img src="images/bg.jpg" class="bg day" crossorigin="anonymous">
+        <img src="images/bg-night.jpg" class="bg night" crossorigin="anonymous">
+
+        <img src="images/characters.png" class="characters day" crossorigin="anonymous">
+        <img src="images/characters-night.png" class="characters night" crossorigin="anonymous">
+
+        <img id="omikuji" class="omikuji" src="images/omikuji1.png" crossorigin="anonymous">
+        <img src="images/draw-btn.png" id="drawBtn" class="draw-btn" crossorigin="anonymous">
+      </div>
+
+<div id="omamoriScreen" class="screen hidden">
   
-<div id="loadingScreen">
-  <img src="images/loading-bg.jpg" class="loading-bg">
-  <img src="images/loading-sakura.png" class="loading-sakura">
-  <div id="loadingText">Loading... 0%</div>
-</div>
+  <button id="btnOmamoriMenu" class="ui-btn-menu-topright" type="button" aria-label="Back to Menu">
+  <img src="images/ui-btn-menu.png" alt="Back to Menu">
+</button>
 
+  <!-- 背景 -->
+  <img src="images/omamori-bg.jpg" class="omamori-bg" alt="">
 
+  <!-- ✅ (1) 只包御守本體：完成後彈跳掛在這層 -->
+  <div id="omamoriPreviewWrap">
+    <div id="omamoriPreview">
 
- <div class="stage">
-  <!-- 🎉 抽籤結果分享彈窗 -->
-<div id="resultModal">
-  <div class="modalContent">
-    <img id="resultImage" alt="你的御神籤結果">
-    <div class="modalButtons">
-      <img id="shareBtn" src="images/share-btn.png">
-      <img id="saveBtn" src="images/save-btn.png">
-      <img id="closeModal" src="images/close-btn.png">
+      <div id="wrapOmamoriTop" class="omamori-part-wrap">
+        <img id="omamoriTop" class="omamori-part top" src="images/omamori-top-01.png" alt="">
+      </div>
+
+      <div id="wrapOmamoriBottom" class="omamori-part-wrap">
+        <img id="omamoriBottom" class="omamori-part bottom" src="images/omamori-bottom-01.png" alt="">
+      </div>
+
+      <div id="wrapOmamoriKnot" class="omamori-part-wrap">
+        <img id="omamoriKnot" class="omamori-part knot" src="images/omamori-knot-01.png" alt="">
+      </div>
+
     </div>
   </div>
-</div>
 
+  <!-- ✅ (2) Perfect（在 wrapper 外面） -->
+  <img id="omamoriPerfect" src="images/omamori-perfect.png" alt="Perfect!">
 
-  <!-- 導覽頁 -->
- <div id="introScreen">
-  <img src="images/guide-bg.jpg" class="intro-bg" alt="導覽背景">
+  <!-- ✅ (3) 完成聚焦後按鈕列（在 wrapper 外面） -->
+  <div id="omamoriFocusActions" class="hidden">
+    <button id="btnFocusMenu" class="focus-btn" type="button">
+      <img src="images/ui-btn-menu.png" alt="回到Menu">
+    </button>
 
-  <div id="introText">
-    <div>Welcome to Nanahara Shrine!</div>
-    <div>To celebrate Nanahara sisters' birthday, we are gathering blessings from </div>
-    <div>all around the world.</div>
-    <div>Tap the birthday card below to send your wishes, and you'll be able to draw a special fortune prepared by the shrine.</div>
-    <div>Come and see what luck awaits you today!</div>
+    <button id="btnFocusBackToEdit" class="focus-btn" type="button">
+      <img src="images/ui-btn-back.png" alt="返回御守製作">
+    </button>
+
+    <button id="btnFocusCapture" class="focus-btn" type="button">
+      <img src="images/ui-btn-capture.png" alt="截圖">
+    </button>
   </div>
 
-    <!-- 包裝層 -->
-  <div id="blessingWrapper">
-    <img id="blessingCard" src="images/Card.png" alt="Blessing Card">
+  <!-- ✅ (4) 角色與對話框（在 wrapper 外面） -->
+  <div id="omamoriDialogue">
+    <div class="npc left">
+      <div class="npc-breathe">
+        <img id="omamoriCharLeft" class="npc-img" src="images/omamori-characters-left-01.png" alt="">
+      </div>
+      <div class="bubble">
+        <img class="bubble-img" src="images/omamori-speech-left.png" alt="">
+        <div id="omamoriLineLeft" class="bubble-text"></div>
+      </div>
+    </div>
+
+    <div class="npc right">
+      <div class="npc-breathe">
+        <img id="omamoriCharRight" class="npc-img" src="images/omamori-characters-right-01.png" alt="">
+      </div>
+      <div class="bubble">
+        <img class="bubble-img" src="images/omamori-speech-right.png" alt="">
+        <div id="omamoriLineRight" class="bubble-text"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ✅ (5) 左右切換按鈕（在 wrapper 外面） -->
+  <button id="btnKnotLeft" class="omamori-arrow left row-knot">
+    <img src="images/omamori-arrow-knot-left.png" alt="">
+  </button>
+  <button id="btnKnotRight" class="omamori-arrow right row-knot">
+    <img src="images/omamori-arrow-knot-right.png" alt="">
+  </button>
+
+  <button id="btnTopLeft" class="omamori-arrow left row-top">
+    <img src="images/omamori-arrow-top-left.png" alt="">
+  </button>
+  <button id="btnTopRight" class="omamori-arrow right row-top">
+    <img src="images/omamori-arrow-top-right.png" alt="">
+  </button>
+
+  <button id="btnBottomLeft" class="omamori-arrow left row-bottom">
+    <img src="images/omamori-arrow-bottom-left.png" alt="">
+  </button>
+  <button id="btnBottomRight" class="omamori-arrow right row-bottom">
+    <img src="images/omamori-arrow-bottom-right.png" alt="">
+  </button>
+
+  <!-- ✅ (6) 完成按鈕（在 wrapper 外面，才能點） -->
+  <button id="btnOmamoriFinish" class="omamori-finish">
+    <img src="images/omamori-btn-finish.png" alt="">
+  </button>
+    </div> <!-- /omamoriScreen -->
+  </div>   <!-- /gameRoot -->
+</div>     <!-- /viewport -->
+ 
+
+  <!-- 音效 -->
+  <audio id="bgm" src="audio/bgm.mp3" loop></audio>
+  <audio id="drawSound" src="audio/draw.mp3" preload="auto"></audio>
+
+<!-- ✅ Omamori 截圖舞台：只用來生成圖片，不干擾主畫面 -->
+<div id="omamoriCaptureStage" class="capture-hidden" aria-hidden="true">
+  <img id="omamoriCaptureBg" src="images/omamori-final.jpg" alt="">
+  <div id="omamoriCaptureOmamori">
+    <img id="capTop" alt="">
+    <img id="capBottom" alt="">
+    <img id="capKnot" alt="">
   </div>
 </div>
-
-
-
-
-
-  <img src="images/bg.jpg" class="bg" crossorigin="anonymous">
-  <img src="images/bg-night.jpg" class="bg night" crossorigin="anonymous">
-<img src="images/shrine.png" class="shrine" crossorigin="anonymous">
-<img src="images/characters.png" class="characters" crossorigin="anonymous">
-<img src="images/characters-night.png" class="characters night" crossorigin="anonymous">
-<!-- 櫻花粒子層 -->
-<canvas id="sakura"></canvas>
-
-<img id="omikuji" class="omikuji" src="images/omikuji1.png" crossorigin="anonymous">
-<img src="images/draw-btn.png" id="drawBtn" class="draw-btn" crossorigin="anonymous">
-
-
-
-</div>
-<!-- 音效 -->
-<audio id="bgm" src="audio/bgm.mp3" loop></audio>
-<audio id="drawSound" src="audio/draw.mp3" preload="auto"></audio>
 
 
 <!-- Firebase -->

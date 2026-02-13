@@ -238,7 +238,8 @@ body:not(.night-mode) #menuScreen:not(.hidden) #menuLogo img {
 body.night-mode #menuScreen:not(.hidden) #menuLogo img {
   filter:
     drop-shadow(0 0 10px rgba(255,230,200,0.6))
-    drop-shadow(0 0 30px rgba(255,220,180,0.5));
+    drop-shadow(0 0 15px rgba(255, 228, 140, 0.644))
+    drop-shadow(0 0 30px rgba(255, 168, 146, 0.76));
 }
 
 
@@ -505,7 +506,7 @@ html, body {
   position: absolute;
   width: 600px;
   height: 295px;
-  left: 280px;
+  left: 265px;
   top: calc(var(--omamori-y) + 760px + 70px); 
   padding: 0;
   border: none;

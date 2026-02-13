@@ -505,7 +505,7 @@ html, body {
   position: absolute;
   width: 600px;
   height: 295px;
-  left: 240px;
+  left: 280px;
   top: calc(var(--omamori-y) + 760px + 70px); 
   padding: 0;
   border: none;

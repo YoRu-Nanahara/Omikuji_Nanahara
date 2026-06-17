@@ -157,25 +157,29 @@ const assets = [
   "images/sakura1.png",
   "images/sakura2.png",
   "images/sakura3.png",
-  "audio/bgm.mp3",
-  "audio/draw.mp3"
+
 ];
 
 let preloadLoadedCount = 0;
 
 assets.forEach(src => {
-  const ext = src.split(".").pop().toLowerCase();
+  const img = new Image();
 
-  if (ext === "mp3") {
-    const audio = new Audio();
-    audio.src = src;
-    audio.addEventListener("canplaythrough", updateLoadingProgress, { once: true });
-  } else {
-    const img = new Image();
-    img.src = src;
-    img.onload = updateLoadingProgress;
-    img.onerror = updateLoadingProgress; // ★ 避免卡死
-  }
+  let done = false;
+
+  const finish = () => {
+    if (done) return;
+    done = true;
+    updateLoadingProgress();
+  };
+
+  img.onload = finish;
+  img.onerror = finish;
+
+  // ✅ 保險：避免某張圖片因網路、快取或瀏覽器問題讓 loading 永遠卡住
+  setTimeout(finish, 8000);
+
+  img.src = src;
 });
 
 

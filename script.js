@@ -1706,6 +1706,9 @@ const WIND_GHOST_END_X = -180;
 const WIND_GHOST_SPEED_MIN = 520;
 const WIND_GHOST_SPEED_MAX = 820;
 
+const WIND_GHOST_W = 140;
+const WIND_GHOST_H = 140;
+
 let windGhostSpeed = 620;
 
 const WIND_GHOST_Y_LIST = [
@@ -1738,11 +1741,11 @@ function updateWindGhost() {
     return;
   }
 
-   windGhost.classList.remove("hidden");
+  windGhost.classList.remove("hidden");
   windGhost.classList.remove("ghost-defeated");
 
-  windGhost.style.left = `${windGhostX}px`;
-  windGhost.style.top = `${windGhostY}px`;
+  // 改用 transform 移動，不再每幀寫 left/top
+  setWindElementPosition(windGhost, windGhostX, windGhostY);
 }
 
 
@@ -1916,11 +1919,15 @@ function getWindGhostHitboxRect() {
   if (!windGhost || windGhost.classList.contains("hidden")) return null;
 
   return insetWindRect(
-    getWindElementGameRect(windGhost),
+    {
+      x: windGhostX - WIND_GHOST_W / 2,
+      y: windGhostY - WIND_GHOST_H / 2,
+      w: WIND_GHOST_W,
+      h: WIND_GHOST_H,
+    },
     WIND_HITBOX_INSET.ghost
   );
 }
-
 
 
 
@@ -2083,6 +2090,13 @@ function updateWindSlashGhostCollision() {
   if (!windAttackActive) return;
   if (!windGhostActive) return;
 
+  // 怪物離玩家太遠時，不檢查斬擊
+  const playerRect = getWindPlayerHitboxRect();
+  if (!playerRect) return;
+
+  if (windGhostX > playerRect.x + playerRect.w + 520) return;
+  if (windGhostX < playerRect.x - 220) return;
+
   const slashRect = getWindSlashHitboxRect();
   const ghostRect = getWindGhostHitboxRect();
 
@@ -2102,10 +2116,12 @@ function updateWindGhostCollision() {
   const playerRect = getWindPlayerHitboxRect();
   if (!playerRect) return;
 
-  const ghostRect = insetWindRect(
-    getWindElementGameRect(windGhost),
-    WIND_HITBOX_INSET.ghost
-  );
+  // 太遠時先跳過，連 hitbox 都不用算
+  if (windGhostX > playerRect.x + playerRect.w + 220) return;
+  if (windGhostX + WIND_GHOST_W / 2 < playerRect.x - 220) return;
+
+  const ghostRect = getWindGhostHitboxRect();
+  if (!ghostRect) return;
 
   if (isWindRectOverlap(playerRect, ghostRect)) {
     windGameOver();

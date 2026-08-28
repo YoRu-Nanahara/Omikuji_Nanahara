@@ -1776,3 +1776,18 @@ body.night-mode #windGameScreen .wind-bonus-sakura {
   -webkit-user-select: none;
   -webkit-user-drag: none;
 }
+
+#windPlayer,
+#windObstacleGroup,
+.wind-ghost,
+.wind-route-sakura,
+.wind-route-gold,
+.wind-bonus-sakura,
+.wind-bonus-gold,
+.wind-player-slash {
+  will-change: transform, opacity;
+}
+
+#windGameScreen {
+  contain: layout paint;
+}

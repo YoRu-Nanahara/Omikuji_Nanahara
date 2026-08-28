@@ -1218,6 +1218,7 @@ function resetWindObstacle() {
   resetWindRouteCollection();
   resetWindBonusCollection();
 
+  // 初始化時只更新一次位置，避免空畫面
   updateWindSakuraTrail();
   updateWindGoldRoute();
   updateWindSakuraBonus();
@@ -1237,21 +1238,22 @@ function updateWindObstacle(dt) {
   windObstacleX -= WIND_OBSTACLE_SPEED * dt;
 
   if (windObstacleX < WIND_OBSTACLE_END_X) {
-  windObstacleX = WIND_OBSTACLE_RESET_X;
+    windObstacleX = WIND_OBSTACLE_RESET_X;
 
- const nextPattern = getRandomWindObstaclePattern();
-applyWindObstaclePattern(nextPattern);
-resetWindRouteCollection();
+    const nextPattern = getRandomWindObstaclePattern();
+    const nextFormation = getRandomWindBonusFormation();
 
-windBonusX = WIND_BONUS_START_X;
+    applyWindObstaclePattern(nextPattern);
+    applyWindBonusFormation(nextFormation);
 
-const nextFormation = getRandomWindBonusFormation();
-applyWindBonusFormation(nextFormation);
-resetWindBonusCollection();
+    windBonusX = WIND_BONUS_START_X;
 
-  console.log("[WindGame] obstacle pattern:", nextPattern);
-  console.log("[WindGame] bonus formation:", nextFormation);
-}
+    resetWindRouteCollection();
+    resetWindBonusCollection();
+
+    // 不在這裡 update 櫻花 / bonus / gold
+    // 讓主 loop 後面的 updateWindSakuraTrail / updateWindBonus 統一處理
+  }
 
   applyWindObstaclePosition();
 }
@@ -1463,7 +1465,8 @@ function applyWindBonusFormation(name) {
   const points = WIND_BONUS_FORMATIONS[name] || [];
   ensureWindBonusSakuraCount(points.length);
 
-  updateWindSakuraBonus();
+  // 不要在這裡立刻 updateWindSakuraBonus()
+  // 讓主 loop 裡的 updateWindBonus(dt) 統一更新
 }
 
 function updateWindSakuraBonus() {
@@ -1506,7 +1509,7 @@ function updateWindBonus(dt) {
 const WIND_OBSTACLE_MID_X =
   (WIND_OBSTACLE_START_X + WIND_OBSTACLE_END_X) / 2;
 
-console.log("bonus midpoint should be:", WIND_OBSTACLE_MID_X);
+
 
 /* =========================
    Wind Game Gold Route Sakura

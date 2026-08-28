@@ -729,8 +729,6 @@ if (btnWindFly) {
 
     setWindButtonPressed(btnWindFly, true);
     setWindFlyPressed(true);
-
-
   });
 
   function releaseWindFly(e) {
@@ -738,15 +736,16 @@ if (btnWindFly) {
 
     setWindButtonPressed(btnWindFly, false);
     setWindFlyPressed(false);
-
-
   }
 
   btnWindFly.addEventListener("pointerup", releaseWindFly);
   btnWindFly.addEventListener("pointercancel", releaseWindFly);
   btnWindFly.addEventListener("lostpointercapture", releaseWindFly);
-  btnWindFly.addEventListener("pointerleave", releaseWindFly);
-  btnWindFly.addEventListener("contextmenu", releaseWindFly);
+
+  // 長按時只阻止選單，不要釋放風術
+  btnWindFly.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+  });
 }
 
 if (btnWindAttack) {
@@ -866,6 +865,10 @@ const WIND_MAX_DOWN_SPEED = 950; // 最大下墜速度
 
 const WIND_TOP_LIMIT = -520;     // 往上最多偏移多少，先限制不死亡
 const WIND_BOTTOM_LIMIT = 720;   // 往下偏移多少後 Game Over
+const WIND_PLAYER_BASE_X = 50;
+const WIND_PLAYER_BASE_Y = 800;
+const WIND_PLAYER_W = 440;
+const WIND_PLAYER_H = 289;
 
 function applyWindPlayerPosition() {
   if (!windPlayer) return;
@@ -1830,7 +1833,12 @@ function isWindXNearPlayer(x, playerRect, margin = 240) {
 
 function getWindPlayerHitboxRect() {
   return insetWindRect(
-    getWindElementGameRect(windPlayer),
+    {
+      x: WIND_PLAYER_BASE_X,
+      y: WIND_PLAYER_BASE_Y + windPlayerY,
+      w: WIND_PLAYER_W,
+      h: WIND_PLAYER_H,
+    },
     WIND_HITBOX_INSET.player
   );
 }

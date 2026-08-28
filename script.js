@@ -315,7 +315,7 @@ const windGameScreen = document.getElementById("windGameScreen");
 const windGameBg = document.getElementById("windGameBg");
 const btnWindGameMenu = document.getElementById("btnWindGameMenu");
 
-function goToScreen(fromScreen, toScreen, holdTime = 600) {
+function goToScreen(fromScreen, toScreen, holdTime = 600, onClosedReady = null) {
   leftDoor.classList.remove("hide", "closed");
   rightDoor.classList.remove("hide", "closed");
 
@@ -324,7 +324,7 @@ function goToScreen(fromScreen, toScreen, holdTime = 600) {
 
   rightDoor.addEventListener("animationend", onDoorsClosed, { once: true });
 
-  function onDoorsClosed() {
+  async function onDoorsClosed() {
     leftDoor.classList.add("closed");
     rightDoor.classList.add("closed");
 
@@ -333,6 +333,10 @@ function goToScreen(fromScreen, toScreen, holdTime = 600) {
 
     fromScreen.classList.add("hidden");
     toScreen.classList.remove("hidden");
+
+    if (typeof onClosedReady === "function") {
+      await onClosedReady();
+    }
 
     setTimeout(() => {
       requestAnimationFrame(() => {
@@ -507,6 +511,135 @@ function playWindSlashSound() {
   }
 }
 
+/* =========================
+   Wind Game Preload
+========================= */
+
+const WIND_GAME_IMAGE_ASSETS = [
+  "images/wind-bg-day.jpg",
+  "images/wind-bg-night.jpg",
+
+  "images/wind-crane.png",
+  "images/wind-chinatsu-up.png",
+  "images/wind-chinatsu-down.png",
+  "images/wind-chifuyu-idle.png",
+  "images/wind-chifuyu-slash.png",
+  "images/wind-slash.png",
+
+  "images/wind-sakura-pink.png",
+  "images/wind-sakura-gold.png",
+
+  "images/wind-obstacle-top.png",
+  "images/wind-obstacle-bottom.png",
+  "images/wind-ghost.png",
+
+  "images/wind-btn-attack.png",
+  "images/wind-btn-fly.png",
+];
+
+let windGameAssetsLoaded = false;
+
+function preloadWindImage(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+
+    img.onload = async () => {
+      if (img.decode) {
+        try {
+          await img.decode();
+        } catch {}
+      }
+
+      resolve();
+    };
+
+    img.onerror = () => {
+      console.warn("[WindGame] preload image failed:", src);
+      resolve();
+    };
+
+    img.src = src;
+  });
+}
+
+function preloadWindAudio(audio) {
+  return new Promise((resolve) => {
+    if (!audio) {
+      resolve();
+      return;
+    }
+
+    if (audio.readyState >= 3) {
+      resolve();
+      return;
+    }
+
+    const done = () => {
+      audio.removeEventListener("canplaythrough", done);
+      audio.removeEventListener("loadeddata", done);
+      audio.removeEventListener("error", done);
+      resolve();
+    };
+
+    audio.addEventListener("canplaythrough", done, { once: true });
+    audio.addEventListener("loadeddata", done, { once: true });
+    audio.addEventListener("error", done, { once: true });
+
+    audio.load();
+
+    // 避免某些瀏覽器不觸發 canplaythrough，導致拉門一直關著
+    setTimeout(done, 2500);
+  });
+}
+
+async function preloadWindGameAssets() {
+  if (windGameAssetsLoaded) return;
+
+  console.log("[WindGame] preload start");
+
+  await Promise.all([
+    ...WIND_GAME_IMAGE_ASSETS.map(preloadWindImage),
+    preloadWindAudio(windGameBgm),
+    preloadWindAudio(windSlashSound),
+  ]);
+
+  windGameAssetsLoaded = true;
+
+  console.log("[WindGame] preload complete");
+}
+
+
+function warmupWindGameDom() {
+  // 預先建立動態櫻花 DOM，避免遊戲開始第一幀才 createElement
+  if (typeof initWindSakuraTrail === "function") {
+    initWindSakuraTrail();
+  }
+
+  if (typeof initWindGoldRoute === "function") {
+    initWindGoldRoute();
+  }
+
+  // 預先把目前狀態渲染一次
+  if (typeof updateWindSakuraTrail === "function") {
+    updateWindSakuraTrail();
+  }
+
+  if (typeof updateWindGoldRoute === "function") {
+    updateWindGoldRoute();
+  }
+
+  if (typeof updateWindSakuraBonus === "function") {
+    updateWindSakuraBonus();
+  }
+
+  if (typeof updateWindBonusGold === "function") {
+    updateWindBonusGold();
+  }
+
+  if (typeof updateWindGhost === "function") {
+    updateWindGhost();
+  }
+}
 
 /* =========================
    Wind Game Controls
@@ -514,6 +647,28 @@ function playWindSlashSound() {
 
 const btnWindAttack = document.getElementById("btnWindAttack");
 const btnWindFly = document.getElementById("btnWindFly");
+
+if (windGameScreen) {
+  windGameScreen.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+  });
+
+  windGameScreen.addEventListener("dragstart", (e) => {
+    e.preventDefault();
+  });
+
+  windGameScreen.addEventListener("selectstart", (e) => {
+    e.preventDefault();
+  });
+}
+
+document.querySelectorAll("#windGameScreen img").forEach((img) => {
+  img.draggable = false;
+
+  img.addEventListener("dragstart", (e) => {
+    e.preventDefault();
+  });
+});
 
 let windFlyPressed = false;
 
@@ -539,23 +694,26 @@ if (btnWindFly) {
       } catch {}
     }
 
+    setWindButtonPressed(btnWindFly, true);
     setWindFlyPressed(true);
+
     console.log("[WindGame] fly pressed");
   });
 
-  btnWindFly.addEventListener("pointerup", (e) => {
-    e.preventDefault();
+  function releaseWindFly(e) {
+    if (e) e.preventDefault();
+
+    setWindButtonPressed(btnWindFly, false);
     setWindFlyPressed(false);
+
     console.log("[WindGame] fly released");
-  });
+  }
 
-  btnWindFly.addEventListener("pointercancel", () => {
-    setWindFlyPressed(false);
-  });
-
-  btnWindFly.addEventListener("lostpointercapture", () => {
-    setWindFlyPressed(false);
-  });
+  btnWindFly.addEventListener("pointerup", releaseWindFly);
+  btnWindFly.addEventListener("pointercancel", releaseWindFly);
+  btnWindFly.addEventListener("lostpointercapture", releaseWindFly);
+  btnWindFly.addEventListener("pointerleave", releaseWindFly);
+  btnWindFly.addEventListener("contextmenu", releaseWindFly);
 }
 
 if (btnWindAttack) {
@@ -626,9 +784,38 @@ let windGhostRespawnTimer = null;
 
 const WIND_GHOST_DEFEAT_SCORE = 10;
 
+function setWindButtonPressed(button, pressed) {
+  if (!button) return;
+
+  if (pressed) {
+    button.classList.add("is-pressed");
+  } else {
+    button.classList.remove("is-pressed");
+  }
+}
+
+function releaseAllWindButtons() {
+  setWindButtonPressed(btnWindFly, false);
+  setWindButtonPressed(btnWindAttack, false);
+}
 
 
 
+window.addEventListener("pointerup", () => {
+  releaseAllWindButtons();
+});
+
+window.addEventListener("blur", () => {
+  releaseAllWindButtons();
+  setWindFlyPressed(false);
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    releaseAllWindButtons();
+    setWindFlyPressed(false);
+  }
+});
 
 /* =========================
    Wind Game Physics
@@ -2150,11 +2337,16 @@ if (btnMission) {
     enterWindGameAudioMode();
 
     if (typeof goToScreen === "function" && menuScreen && windGameScreen) {
-      goToScreen(menuScreen, windGameScreen, 600);
+      goToScreen(menuScreen, windGameScreen, 600, async () => {
+        await preloadWindGameAssets();
 
-      setTimeout(() => {
-        startWindCountdown();
-      }, 1000);
+        warmupWindGameDom();
+
+        // 等拉門準備打開後再開始倒數
+        setTimeout(() => {
+          startWindCountdown();
+        }, 850);
+      });
     } else {
       console.warn("[Mission] goToScreen/menuScreen/windGameScreen not ready");
     }

@@ -1352,9 +1352,8 @@ function updateWindSakuraTrail() {
     const y = getWindSakuraY(pattern, i);
 
     // 沒被吃掉的櫻花，重設顯示
-    el.style.display = "block";
-    el.style.left = `${x}px`;
-    el.style.top = `${y}px`;
+   el.style.display = "block";
+setWindElementPosition(el, x, y);
   }
 }
 
@@ -1440,6 +1439,10 @@ const WIND_BONUS_FORMATION_ORDER = [
   "verticalLine",
 ];
 
+const WIND_BONUS_SAKURA_POOL_SIZE = Math.max(
+  ...Object.values(WIND_BONUS_FORMATIONS).map((points) => points.length)
+);
+
 function ensureWindBonusSakuraCount(count) {
   if (!windSakuraBonus) return;
 
@@ -1462,13 +1465,10 @@ function ensureWindBonusSakuraCount(count) {
 function applyWindBonusFormation(name) {
   windCurrentBonusFormation = name;
 
-  const points = WIND_BONUS_FORMATIONS[name] || [];
-  ensureWindBonusSakuraCount(points.length);
-
-  // 不要在這裡立刻 updateWindSakuraBonus()
-  // 讓主 loop 裡的 updateWindBonus(dt) 統一更新
+  // 一次確保 bonus 櫻花池已經建到最大數量
+  // 之後切 formation 時就不會臨時 createElement
+  ensureWindBonusSakuraCount(WIND_BONUS_SAKURA_POOL_SIZE);
 }
-
 function updateWindSakuraBonus() {
   if (!windSakuraBonus) return;
 
@@ -1494,8 +1494,7 @@ function updateWindSakuraBonus() {
     const y = point.y;
 
     el.style.display = "block";
-    el.style.left = `${x}px`;
-    el.style.top = `${y}px`;
+setWindElementPosition(el, x, y);
   }
 }
 
@@ -1589,8 +1588,7 @@ if (windGoldRouteCollected) {
   const y = middleCenterY - WIND_GOLD_MIDDLE_Y_OFFSET;
 
   windGoldRouteEl.style.display = "block";
-  windGoldRouteEl.style.left = `${x}px`;
-  windGoldRouteEl.style.top = `${y}px`;
+setWindElementPosition(windGoldRouteEl, x, y);
 }
 
 
@@ -1664,9 +1662,8 @@ function updateWindBonusGold() {
     const x = windBonusX + point.x;
     const y = point.y;
 
-    el.style.display = "block";
-    el.style.left = `${x}px`;
-    el.style.top = `${y}px`;
+   el.style.display = "block";
+setWindElementPosition(el, x, y);
   }
 }
 
@@ -1784,6 +1781,31 @@ function defeatWindGhost() {
    Wind Game Collectibles
 ========================= */
 
+function setWindElementPosition(el, x, y) {
+  if (!el) return;
+
+  el.dataset.windX = String(x);
+  el.dataset.windY = String(y);
+
+  el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
+}
+
+function getWindLogicalElementRect(el, width, height) {
+  if (!el) return null;
+
+  const x = Number(el.dataset.windX);
+  const y = Number(el.dataset.windY);
+
+  if (Number.isNaN(x) || Number.isNaN(y)) return null;
+
+  return {
+    x: x - width / 2,
+    y: y - height / 2,
+    w: width,
+    h: height,
+  };
+}
+
 let windRouteSakuraCollected = [];
 let windGoldRouteCollected = false;
 
@@ -1848,14 +1870,18 @@ function getWindPlayerHitboxRect() {
 
 function getWindSakuraHitboxRect(el) {
   return insetWindRect(
-    getWindElementGameRect(el),
+    getWindLogicalElementRect(el, 58, 58),
     WIND_HITBOX_INSET.sakura
   );
 }
 
 function getWindGoldHitboxRect(el) {
+  const size = el && el.classList.contains("wind-bonus-gold")
+    ? 86
+    : 78;
+
   return insetWindRect(
-    getWindElementGameRect(el),
+    getWindLogicalElementRect(el, size, size),
     WIND_HITBOX_INSET.gold
   );
 }
@@ -1934,7 +1960,7 @@ function updateWindCollectiblesCollision() {
     if (el.style.display === "none") continue;
 
     // 先用 X 座標粗略判斷，太遠就不要讀 getBoundingClientRect()
-    const sakuraX = parseFloat(el.style.left || "-9999");
+   const sakuraX = Number(el.dataset.windX || "-9999");
     if (!isWindXNearPlayer(sakuraX, playerRect, 240)) continue;
 
     const sakuraRect = getWindSakuraHitboxRect(el);
@@ -1951,7 +1977,7 @@ function updateWindCollectiblesCollision() {
     if (windGoldRouteCollected) {
       windGoldRouteEl.style.display = "none";
     } else if (windGoldRouteEl.style.display !== "none") {
-      const goldX = parseFloat(windGoldRouteEl.style.left || "-9999");
+    const goldX = Number(windGoldRouteEl.dataset.windX || "-9999");
 
       if (isWindXNearPlayer(goldX, playerRect, 280)) {
         const goldRect = getWindGoldHitboxRect(windGoldRouteEl);
@@ -1978,7 +2004,7 @@ function updateWindCollectiblesCollision() {
     if (el.style.display === "none") continue;
 
     // 先用 X 座標粗略判斷，太遠就跳過
-    const sakuraX = parseFloat(el.style.left || "-9999");
+    const sakuraX = Number(el.dataset.windX || "-9999");
     if (!isWindXNearPlayer(sakuraX, playerRect, 240)) continue;
 
     const sakuraRect = getWindSakuraHitboxRect(el);
@@ -2004,7 +2030,7 @@ function updateWindCollectiblesCollision() {
       if (el.style.display === "none") continue;
 
       // 金櫻花比較大，所以 margin 稍微放寬
-      const goldX = parseFloat(el.style.left || "-9999");
+      const goldX = Number(el.dataset.windX || "-9999");
       if (!isWindXNearPlayer(goldX, playerRect, 280)) continue;
 
       const goldRect = getWindGoldHitboxRect(el);

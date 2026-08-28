@@ -641,6 +641,24 @@ function warmupWindGameDom() {
   }
 }
 
+
+function startWindGamePreloadIdle() {
+  if (windGameAssetsLoaded) return;
+
+  const run = () => {
+    preloadWindGameAssets();
+  };
+
+  if ("requestIdleCallback" in window) {
+    requestIdleCallback(run, { timeout: 2000 });
+  } else {
+    setTimeout(run, 1500);
+  }
+}
+
+
+
+
 /* =========================
    Wind Game Controls
 ========================= */

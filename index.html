@@ -57,6 +57,11 @@
       <button id="btnOmamori" class="menu-btn">
         <img src="images/menu-btn-omamori.png" alt="">
       </button>
+
+<button id="btnMission" class="menu-btn menu-btn-mission" type="button">
+  <img src="images/menu-btn-mission.png" alt="Mission">
+</button>
+
     </div>
 
     <!-- LOGO：放在 buttons 外面，定位才乾淨 -->
@@ -202,13 +207,64 @@
     <img src="images/omamori-btn-finish.png" alt="">
   </button>
     </div> <!-- /omamoriScreen -->
+
+  <div id="windGameScreen" class="screen hidden">
+  <img id="windGameBg" class="wind-game-bg" src="" alt="Nanahara Wind Flight Background">
+
+
+  <!-- Wind Game Obstacles -->
+<div id="windObstacleGroup">
+  <img id="windObstacleTop" class="wind-obstacle wind-obstacle-top" src="images/wind-obstacle-top.png" alt="">
+  <img id="windObstacleBottom" class="wind-obstacle wind-obstacle-bottom" src="images/wind-obstacle-bottom.png" alt="">
+</div>
+
+<div id="windSakuraTrail"></div>
+<div id="windGoldRoute"></div>
+<div id="windSakuraBonus"></div>
+<div id="windBonusGold"></div>
+
+<img id="windGhost" class="wind-ghost hidden" src="images/wind-ghost.png" alt="">
+
+  <!-- Wind Game Player：紙鶴 + 千夏 + 千冬 -->
+  <div id="windPlayer">
+  
+    <img id="windCrane" class="wind-player-layer" src="images/wind-crane.png" alt="">
+    <img id="windChinatsu" class="wind-player-layer" src="images/wind-chinatsu-down.png" alt="">
+    <img id="windChifuyu" class="wind-player-layer" src="images/wind-chifuyu-idle.png" alt="">
+    <img id="windSlash" class="wind-player-slash hidden" src="images/wind-slash.png" alt="">
+  </div>
+
+  <div id="windCountdown" class="hidden" aria-live="polite"></div>
+  <div id="windScore">0</div>
+
+  <div id="windHitboxLayer"></div>
+
+  <!-- 新增：小遊戲操作按鈕 -->
+  <div id="windControls">
+    <button id="btnWindAttack" class="wind-control-btn wind-attack-btn" type="button" aria-label="Attack">
+      <img src="images/wind-btn-attack.png" alt="Attack">
+    </button>
+
+    <button id="btnWindFly" class="wind-control-btn wind-fly-btn" type="button" aria-label="Fly">
+      <img src="images/wind-btn-fly.png" alt="Fly">
+    </button>
+  </div>
+  <button id="btnWindGameMenu" class="ui-btn-menu-topright" type="button" aria-label="Back to Menu">
+    <img src="images/ui-btn-menu.png" alt="Back to Menu">
+  </button>
+</div>
   </div>   <!-- /gameRoot -->
 </div>     <!-- /viewport -->
  
 
   <!-- 音效 -->
-  <audio id="bgm" src="audio/bgm.mp3" loop></audio>
-  <audio id="drawSound" src="audio/draw.mp3" preload="auto"></audio>
+<!-- 音效 -->
+<audio id="bgm" src="audio/bgm.mp3" loop></audio>
+<audio id="drawSound" src="audio/draw.mp3" preload="auto"></audio>
+
+<!-- Wind Game 音效 -->
+<audio id="windGameBgm" src="audio/wind-bgm.mp3" loop preload="auto"></audio>
+<audio id="windSlashSound" src="audio/wind-slash-se.wav" preload="auto"></audio>
 
 <!-- ✅ Omamori 截圖舞台：只用來生成圖片，不干擾主畫面 -->
 <div id="omamoriCaptureStage" class="capture-hidden" aria-hidden="true">

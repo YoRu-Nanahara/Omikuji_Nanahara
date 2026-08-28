@@ -175,7 +175,10 @@
   flex-direction: column; /* 改成垂直排列 */
   align-items: center;    /* 水平置中 */
   gap: 20px;              /* 按鈕間距 */
+    /* 三顆按鈕時，整組稍微往上，避免壓到下方 LOGO */
+  transform: translateY(-110px);
 }
+
 
 .menu-btn {
   background: transparent;
@@ -193,7 +196,10 @@
   height: auto;
 }
 
-
+.menu-btn-mission {
+  width: 638px; /* 這裡單獨調 Mission 按鈕大小 */
+  margin-top: -45px;
+}
 
 /* ===== Menu LOGO ===== */
 #menuLogo {
@@ -1289,4 +1295,450 @@ img {
 button {
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* =========================
+   Wind Game Screen
+========================= */
+
+#windGameScreen {
+  position: absolute;
+  inset: 0;
+  background: black;
+  overflow: hidden;
+}
+
+.wind-game-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#windGameScreen .ui-btn-menu-topright {
+  z-index: 20;
+}
+
+/* =========================
+   Wind Game Player
+========================= */
+
+#windPlayer {
+  position: absolute;
+
+  /* 先用這組測試：左側偏中、畫面中間附近 */
+  left: 50px;
+  top: 800px;
+
+  width: 440px;
+  height: 289px; /* 640:420 等比例縮小到 width 440 */
+
+  z-index: 10;
+  pointer-events: none;
+
+  /* 之後做飛行時，會改這個 transform 或 top */
+  transform-origin: center center;
+}
+
+.wind-player-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+}
+
+/* 刀光獨立處理，不使用 640×420 角色畫布比例 */
+.wind-player-slash {
+  position: absolute;
+
+  left: 250px;
+  top: -70px;
+
+  width: 420px;
+  height: 300px;
+
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  z-index: 20;
+
+  opacity: 0;
+  transform: translateX(0) scale(0.9);
+  transform-origin: center center;
+}
+
+/* 攻擊時啟用：劍氣向前飛出並淡出 */
+.wind-player-slash.slash-active {
+  opacity: 1;
+  animation: windSlashWave 280ms linear forwards;
+}
+
+@keyframes windSlashWave {
+  0% {
+    opacity: 0;
+    transform: translateX(0) scale(0.85);
+  }
+
+  12% {
+    opacity: 1;
+    transform: translateX(45px) scale(0.95);
+  }
+
+  45% {
+    opacity: 0.65;
+    transform: translateX(170px) scale(1.04);
+  }
+
+  75% {
+    opacity: 0.25;
+    transform: translateX(285px) scale(1.12);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(390px) scale(1.18);
+  }
+}
+
+#windSlash.hidden {
+  display: none;
+}
+
+/* =========================
+   Wind Game Controls
+========================= */
+
+#windControls {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.wind-control-btn {
+  position: absolute;
+
+  width: 380px;
+  height: 380px;
+
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+
+  pointer-events: auto;
+
+  transform-origin: center center;
+  transition: transform 100ms ease, filter 100ms ease;
+}
+
+.wind-control-btn img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+/* 左下：攻擊 */
+.wind-attack-btn {
+  left: 95px;
+  bottom: 135px;
+}
+
+/* 右下：飛行 */
+.wind-fly-btn {
+  right: 95px;
+  bottom: 135px;
+}
+
+.wind-control-btn:active {
+  transform: scale(0.92);
+  filter: brightness(1.08);
+}
+
+/* =========================
+   Wind Game Countdown
+========================= */
+
+#windCountdown {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+
+  z-index: 40;
+  pointer-events: none;
+
+  opacity: 0; /* 加這行 */
+
+  font-family: 'Open Sans', sans-serif;
+  font-size: 150px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: #fff;
+
+  text-align: center;
+
+  text-shadow:
+    0 0 12px rgba(255, 255, 255, 0.9),
+    0 0 28px rgba(255, 190, 220, 0.8),
+    0 0 52px rgba(255, 220, 150, 0.55);
+}
+
+#windCountdown.countdown-pop {
+  animation: windCountdownPop 820ms ease-out both;
+}
+
+@keyframes windCountdownPop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.72);
+  }
+
+  35% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* =========================
+   Wind Game Obstacles
+========================= */
+
+#windObstacleGroup {
+  position: absolute;
+  left:0px;
+  top: 0;
+
+  width: 260px;
+  height: 1920px;
+
+  z-index: 8;
+  pointer-events: none;
+}
+
+.wind-obstacle {
+  position: absolute;
+  left: 0;
+
+  width: 260px;
+  height: 1200px;
+
+  object-fit: fill;
+  display: block;
+  pointer-events: none;
+}
+
+/* 位置由 JS 控制 */
+.wind-obstacle-top,
+.wind-obstacle-bottom {
+  top: 0;
+}
+
+/* 夜晚時給共用障礙物一點微光 */
+body.night-mode #windGameScreen .wind-obstacle {
+  filter:
+    drop-shadow(0 0 10px rgba(255, 230, 180, 0.45))
+    drop-shadow(0 0 22px rgba(180, 210, 255, 0.28));
+}
+
+/* =========================
+   Wind Game Sakura Trail
+========================= */
+
+#windSakuraTrail {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+}
+
+.wind-route-sakura {
+  position: absolute;
+
+  width: 130px;
+  height: 130px;
+
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+
+  transform: translate(-50%, -50%);
+}
+
+/* 夜晚時讓粉櫻花稍微亮一點 */
+body.night-mode #windGameScreen .wind-route-sakura {
+  filter:
+    drop-shadow(0 0 8px rgba(255, 210, 235, 0.75))
+    drop-shadow(0 0 18px rgba(255, 180, 220, 0.45));
+}
+
+#windSakuraBonus {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+}
+
+.wind-bonus-sakura {
+  position: absolute;
+
+  width: 130px;
+  height: 130px;
+
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+
+  transform: translate(-50%, -50%);
+}
+
+body.night-mode #windGameScreen .wind-bonus-sakura {
+  filter:
+    drop-shadow(0 0 8px rgba(255, 210, 235, 0.75))
+    drop-shadow(0 0 18px rgba(255, 180, 220, 0.45));
+}
+
+#windGoldRoute {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.wind-route-gold {
+  position: absolute;
+
+  width: 170px;
+  height: 170px;
+
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+
+  transform: translate(-50%, -50%);
+
+  filter:
+    drop-shadow(0 0 10px rgba(255, 235, 150, 0.9))
+    drop-shadow(0 0 24px rgba(255, 190, 80, 0.65));
+}
+
+#windBonusGold {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.wind-bonus-gold {
+  position: absolute;
+
+  width: 170px;
+  height: 170px;
+
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+
+  transform: translate(-50%, -50%);
+
+  filter:
+    drop-shadow(0 0 10px rgba(255, 235, 150, 0.95))
+    drop-shadow(0 0 24px rgba(255, 190, 80, 0.7));
+}
+
+
+/* =========================
+   Wind Game Hitbox Debug
+========================= */
+
+#windHitboxLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+}
+
+.wind-hitbox {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.wind-hitbox-player {
+  border: 3px solid rgba(255, 70, 70, 0.9);
+  background: rgba(255, 70, 70, 0.12);
+}
+
+.wind-hitbox-obstacle {
+  border: 3px solid rgba(255, 150, 40, 0.9);
+  background: rgba(255, 150, 40, 0.12);
+}
+
+.wind-hitbox-sakura {
+  border: 3px solid rgba(255, 120, 200, 0.9);
+  background: rgba(255, 120, 200, 0.12);
+  border-radius: 50%;
+}
+
+.wind-hitbox-gold {
+  border: 3px solid rgba(255, 220, 60, 0.95);
+  background: rgba(255, 220, 60, 0.14);
+  border-radius: 50%;
+}
+
+#windScore {
+  position: absolute;
+  left: 50px;
+  top: 45px;
+
+  z-index: 60;
+  pointer-events: none;
+
+  font-family: 'Open Sans', sans-serif;
+  font-size: 72px;
+  font-weight: 700;
+  color: #fff;
+
+  text-shadow:
+    0 0 10px rgba(255, 255, 255, 0.9),
+    0 0 24px rgba(255, 190, 220, 0.75),
+    0 0 42px rgba(255, 220, 120, 0.55);
+}
+
+
+
+.wind-ghost {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  z-index: 12;
+  opacity: 1;
+
+  transform: translate(-50%, -50%);
+  filter:
+    drop-shadow(0 0 12px rgba(120, 80, 180, 0.8))
+    drop-shadow(0 0 28px rgba(80, 40, 140, 0.55));
+}
+
+.wind-ghost.ghost-defeated {
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition:
+    opacity 180ms ease-out;
 }

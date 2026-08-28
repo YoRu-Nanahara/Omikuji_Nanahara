@@ -305,9 +305,15 @@ function showIntroTextLines() {
 
 
 const btnOmikuji = document.getElementById("btnOmikuji");
+const btnMission = document.getElementById("btnMission");
+
 const leftDoor = document.querySelector(".door.left");
 const rightDoor = document.querySelector(".door.right");
+
 const omikujiScreen = document.getElementById("omikujiScreen");
+const windGameScreen = document.getElementById("windGameScreen");
+const windGameBg = document.getElementById("windGameBg");
+const btnWindGameMenu = document.getElementById("btnWindGameMenu");
 
 function goToScreen(fromScreen, toScreen, holdTime = 600) {
   leftDoor.classList.remove("hide", "closed");
@@ -338,6 +344,1796 @@ function goToScreen(fromScreen, toScreen, holdTime = 600) {
     }, holdTime);
   }
 }
+const WIND_GAME_BG = {
+  day: "images/wind-bg-day.jpg",
+  night: "images/wind-bg-night.jpg"
+};
+
+function getWindGameModeByTime() {
+  const hour = new Date().getHours();
+  return hour >= 18 || hour < 6 ? "night" : "day";
+}
+
+function prepareWindGameBackground() {
+  if (!windGameBg) return;
+
+  const mode = getWindGameModeByTime();
+  const nextSrc = WIND_GAME_BG[mode];
+
+  if (windGameBg.getAttribute("src") !== nextSrc) {
+    windGameBg.src = nextSrc;
+  }
+}
+
+/* =========================
+   Wind Game Player Setup
+========================= */
+
+const windPlayer = document.getElementById("windPlayer");
+const windChinatsu = document.getElementById("windChinatsu");
+const windChifuyu = document.getElementById("windChifuyu");
+const windSlash = document.getElementById("windSlash");
+
+function resetWindPlayerVisual() {
+  windPlayerY = 0;
+  windPlayerVY = 0;
+  windLastTime = 0;
+
+  if (windAnimFrame) {
+    cancelAnimationFrame(windAnimFrame);
+    windAnimFrame = null;
+
+    clearWindDebugHitboxes();
+  }
+
+  applyWindPlayerPosition();
+
+  if (windChinatsu) {
+    windChinatsu.src = "images/wind-chinatsu-down.png";
+  }
+
+  if (windChifuyu) {
+    windChifuyu.src = "images/wind-chifuyu-idle.png";
+  }
+
+  if (windSlash) {
+    windSlash.classList.add("hidden");
+    windSlash.classList.remove("slash-active");
+  }
+}
+
+
+/* =========================
+   Wind Game Audio
+========================= */
+
+const shrineBgm = document.getElementById("bgm");
+const windGameBgm = document.getElementById("windGameBgm");
+const windSlashSound = document.getElementById("windSlashSound");
+
+let windGameAudioMode = false;
+let windGameBgmStartedThisRound = false;
+
+if (windGameBgm) {
+  windGameBgm.loop = true;
+}
+
+function playAudioSafe(audio) {
+  if (!audio) return;
+
+  const playPromise = audio.play();
+
+  if (playPromise && typeof playPromise.catch === "function") {
+    playPromise.catch((err) => {
+      console.warn("[Audio] play blocked or failed:", err);
+    });
+  }
+}
+
+function pauseAudio(audio) {
+  if (!audio) return;
+  audio.pause();
+}
+
+function stopAudio(audio) {
+  if (!audio) return;
+  audio.pause();
+  audio.currentTime = 0;
+}
+
+function enterWindGameAudioMode() {
+  windGameAudioMode = true;
+  windGameBgmStartedThisRound = false;
+
+  // 進入小遊戲時，先停掉神社 BGM
+  stopAudio(shrineBgm);
+
+  // 小遊戲 BGM 也先保持停止，等倒數到 2 再播
+  stopAudio(windGameBgm);
+
+  // 保險：防止原本神社 BGM 淡入流程稍後復活
+  setTimeout(() => {
+    if (windGameAudioMode) stopAudio(shrineBgm);
+  }, 100);
+
+  setTimeout(() => {
+    if (windGameAudioMode) stopAudio(shrineBgm);
+  }, 500);
+}
+
+function playWindGameBgmFromStart() {
+  if (!windGameAudioMode) return;
+  if (!windGameBgm) return;
+
+  // 這一局已經播放過，就不要重新從頭播
+  if (windGameBgmStartedThisRound) return;
+
+  windGameBgmStartedThisRound = true;
+
+  windGameBgm.pause();
+  windGameBgm.currentTime = 0;
+  windGameBgm.volume = 0.9;
+  windGameBgm.loop = true;
+
+  playAudioSafe(windGameBgm);
+}
+
+function stopWindGameBgm() {
+  stopAudio(windGameBgm);
+  windGameBgmStartedThisRound = false;
+}
+
+function switchToShrineBgm() {
+  windGameAudioMode = false;
+
+  stopWindGameBgm();
+
+  if (shrineBgm) {
+    shrineBgm.volume = 1;
+    playAudioSafe(shrineBgm);
+  }
+}
+
+function playWindSlashSound() {
+  if (!windSlashSound) return;
+
+  windSlashSound.pause();
+  windSlashSound.currentTime = 0;
+  windSlashSound.volume = 0.9;
+
+  const p = windSlashSound.play();
+  if (p && typeof p.catch === "function") {
+    p.catch(() => {});
+  }
+}
+
+
+/* =========================
+   Wind Game Controls
+========================= */
+
+const btnWindAttack = document.getElementById("btnWindAttack");
+const btnWindFly = document.getElementById("btnWindFly");
+
+let windFlyPressed = false;
+
+function setWindFlyPressed(pressed) {
+  windFlyPressed = pressed;
+
+  if (windGameState !== "playing" && windGameState !== "countdown") return;
+
+  if (windChinatsu) {
+    windChinatsu.src = pressed
+      ? "images/wind-chinatsu-up.png"
+      : "images/wind-chinatsu-down.png";
+  }
+}
+
+if (btnWindFly) {
+  btnWindFly.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+
+    if (btnWindFly.setPointerCapture && e.pointerId !== undefined) {
+      try {
+        btnWindFly.setPointerCapture(e.pointerId);
+      } catch {}
+    }
+
+    setWindFlyPressed(true);
+    console.log("[WindGame] fly pressed");
+  });
+
+  btnWindFly.addEventListener("pointerup", (e) => {
+    e.preventDefault();
+    setWindFlyPressed(false);
+    console.log("[WindGame] fly released");
+  });
+
+  btnWindFly.addEventListener("pointercancel", () => {
+    setWindFlyPressed(false);
+  });
+
+  btnWindFly.addEventListener("lostpointercapture", () => {
+    setWindFlyPressed(false);
+  });
+}
+
+if (btnWindAttack) {
+  btnWindAttack.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+
+    if (windGameState !== "playing") return;
+    if (windAttackActive) return;
+
+    startWindAttack();
+  });
+}
+
+function startWindAttack() {
+  windAttackActive = true;
+
+  playWindSlashSound();
+
+  if (windAttackTimer) {
+    clearTimeout(windAttackTimer);
+    windAttackTimer = null;
+  }
+
+  if (windChifuyu) {
+    windChifuyu.src = "images/wind-chifuyu-slash.png";
+  }
+
+  if (windSlash) {
+    windSlash.classList.remove("hidden");
+    windSlash.classList.remove("slash-active");
+
+    // 重新觸發動畫
+    void windSlash.offsetWidth;
+
+    windSlash.classList.add("slash-active");
+  }
+
+  windAttackTimer = setTimeout(() => {
+    endWindAttack();
+  }, 280);
+
+  console.log("[WindGame] attack");
+}
+
+function endWindAttack() {
+  windAttackActive = false;
+
+  if (windAttackTimer) {
+    clearTimeout(windAttackTimer);
+    windAttackTimer = null;
+  }
+
+  if (windChifuyu) {
+    windChifuyu.src = "images/wind-chifuyu-idle.png";
+  }
+
+  if (windSlash) {
+    windSlash.classList.remove("slash-active");
+    windSlash.classList.add("hidden");
+  }
+}
+
+
+
+let windAttackActive = false;
+let windAttackTimer = null;
+let windGhostRespawnTimer = null;
+
+const WIND_GHOST_DEFEAT_SCORE = 10;
+
+
+
+
+
+/* =========================
+   Wind Game Physics
+========================= */
+
+let windPlayerY = 0;      // 只控制相對初始位置的上下偏移
+let windPlayerVY = 0;
+let windLastTime = 0;
+let windAnimFrame = null;
+
+const WIND_GRAVITY = 1800;       // 下墜力量，數字越大掉越快
+const WIND_FLY_FORCE = 2600;     // 按住飛行時的上升力量
+const WIND_MAX_UP_SPEED = -850;  // 最大上升速度
+const WIND_MAX_DOWN_SPEED = 950; // 最大下墜速度
+
+const WIND_TOP_LIMIT = -520;     // 往上最多偏移多少，先限制不死亡
+const WIND_BOTTOM_LIMIT = 720;   // 往下偏移多少後 Game Over
+
+function applyWindPlayerPosition() {
+  if (!windPlayer) return;
+  windPlayer.style.transform = `translateY(${windPlayerY}px)`;
+}
+
+function startWindGameLoop() {
+  if (windAnimFrame) {
+    cancelAnimationFrame(windAnimFrame);
+    windAnimFrame = null;
+  }
+
+  windLastTime = performance.now();
+
+  function loop(now) {
+    if (windGameState !== "playing") {
+      windAnimFrame = null;
+      return;
+    }
+
+    const dt = Math.min((now - windLastTime) / 1000, 0.033);
+    windLastTime = now;
+
+  updateWindPlayerPhysics(dt);
+updateWindObstacle(dt);
+updateWindSakuraTrail();
+updateWindGoldRoute();
+updateWindBonus(dt);
+updateWindBonusGold();
+updateWindGhostMovement(dt);
+
+applyWindPlayerPosition();
+
+updateWindCollectiblesCollision();
+updateWindObstacleCollision();
+
+updateWindSlashGhostCollision();
+updateWindGhostCollision();
+
+updateWindDebugHitboxes();
+
+windAnimFrame = requestAnimationFrame(loop);
+  }
+
+  windAnimFrame = requestAnimationFrame(loop);
+}
+
+function updateWindPlayerPhysics(dt) {
+  if (windFlyPressed) {
+    windPlayerVY -= WIND_FLY_FORCE * dt;
+
+    if (windChinatsu) {
+      windChinatsu.src = "images/wind-chinatsu-up.png";
+    }
+  } else {
+    windPlayerVY += WIND_GRAVITY * dt;
+
+    if (windChinatsu) {
+      windChinatsu.src = "images/wind-chinatsu-down.png";
+    }
+  }
+
+  if (windPlayerVY < WIND_MAX_UP_SPEED) {
+    windPlayerVY = WIND_MAX_UP_SPEED;
+  }
+
+  if (windPlayerVY > WIND_MAX_DOWN_SPEED) {
+    windPlayerVY = WIND_MAX_DOWN_SPEED;
+  }
+
+  windPlayerY += windPlayerVY * dt;
+
+  // 上方先不死亡，只限制高度
+  if (windPlayerY < WIND_TOP_LIMIT) {
+    windPlayerY = WIND_TOP_LIMIT;
+    windPlayerVY = 0;
+  }
+
+  // 下方摔落
+  if (windPlayerY > WIND_BOTTOM_LIMIT) {
+    windPlayerY = WIND_BOTTOM_LIMIT;
+    applyWindPlayerPosition();
+    windGameOver();
+  }
+}
+
+
+function windGameOver() {
+  if (windGameState === "gameover") return;
+
+  setWindGameState("gameover");
+
+  stopWindGameBgm();
+
+  if (windAnimFrame) {
+    cancelAnimationFrame(windAnimFrame);
+    windAnimFrame = null;
+  }
+
+  windFlyPressed = false;
+
+  windAttackActive = false;
+
+if (windAttackTimer) {
+  clearTimeout(windAttackTimer);
+  windAttackTimer = null;
+}
+
+if (windGhostRespawnTimer) {
+  clearTimeout(windGhostRespawnTimer);
+  windGhostRespawnTimer = null;
+}
+
+if (windSlash) {
+  windSlash.classList.remove("slash-active");
+  windSlash.classList.add("hidden");
+}
+
+  if (windChinatsu) {
+    windChinatsu.src = "images/wind-chinatsu-down.png";
+  }
+
+  if (windCountdown) {
+    windCountdown.textContent = "Game Over";
+    windCountdown.classList.remove("hidden");
+    windCountdown.classList.remove("countdown-pop");
+    void windCountdown.offsetWidth;
+    windCountdown.classList.add("countdown-pop");
+  }
+
+  console.log("[WindGame] Game Over");
+}
+
+
+
+
+/* =========================
+   Wind Game State + Countdown
+========================= */
+
+const windCountdown = document.getElementById("windCountdown");
+
+let windGameState = "idle";
+// idle      尚未開始
+// countdown 倒數中
+// playing   遊戲中
+// gameover  結束
+
+let windCountdownTimer = null;
+
+function setWindGameState(nextState) {
+  windGameState = nextState;
+  console.log("[WindGame] state:", windGameState);
+}
+
+function clearWindCountdown() {
+  if (windCountdownTimer) {
+    clearTimeout(windCountdownTimer);
+    windCountdownTimer = null;
+  }
+
+  if (windCountdown) {
+    windCountdown.classList.add("hidden");
+    windCountdown.classList.remove("countdown-pop");
+    windCountdown.textContent = "";
+  }
+}
+
+function showWindCountdownText(text) {
+  if (!windCountdown) return;
+
+  windCountdown.textContent = text;
+
+  windCountdown.classList.remove("countdown-pop");
+  windCountdown.classList.remove("hidden");
+
+  // 重新觸發動畫
+  void windCountdown.offsetWidth;
+
+  windCountdown.classList.add("countdown-pop");
+}
+
+function startWindCountdown() {
+  clearWindCountdown();
+  setWindGameState("countdown");
+
+  const steps = ["3", "2", "1", "Start"];
+  let index = 0;
+
+  function nextStep() {
+    if (index >= steps.length) {
+      clearWindCountdown();
+      startWindPlaying();
+      return;
+    }
+
+    const currentStep = steps[index];
+
+    showWindCountdownText(currentStep);
+
+    if (currentStep === "2") {
+      playWindGameBgmFromStart();
+    }
+
+    index += 1;
+
+    windCountdownTimer = setTimeout(nextStep, 1000);
+  }
+
+  nextStep();
+}
+
+function startWindPlaying() {
+  setWindGameState("playing");
+
+  // 保險：如果倒數到 2 時沒播成功，正式開始時再試一次
+  // 如果已經播過，這裡不會重播
+  playWindGameBgmFromStart();
+
+  windPlayerY = 0;
+  windPlayerVY = 0;
+  windLastTime = performance.now();
+
+  applyWindPlayerPosition();
+  startWindGameLoop();
+
+  console.log("[WindGame] Start!");
+}
+
+
+
+function getRandomWindObstaclePattern() {
+  const currentPattern = windCurrentObstaclePattern;
+
+  const candidates = WIND_OBSTACLE_PATTERNS.filter((pattern) => {
+    return pattern !== currentPattern;
+  });
+
+  const index = Math.floor(Math.random() * candidates.length);
+  return candidates[index];
+}
+
+
+function getRandomWindBonusFormation() {
+  const currentFormation = windCurrentBonusFormation;
+
+  const candidates = WIND_BONUS_FORMATION_ORDER.filter((formation) => {
+    return formation !== currentFormation;
+  });
+
+  const index = Math.floor(Math.random() * candidates.length);
+  return candidates[index];
+}
+
+
+
+/* =========================
+   Wind Game Obstacles
+========================= */
+
+const windObstacleGroup = document.getElementById("windObstacleGroup");
+const windObstacleTop = document.getElementById("windObstacleTop");
+const windObstacleBottom = document.getElementById("windObstacleBottom");
+
+let windObstacleX = 1180;
+let windObstaclePatternIndex = 0;
+
+const WIND_OBSTACLE_START_X = 2600;
+const WIND_OBSTACLE_RESET_X = 2600;
+const WIND_OBSTACLE_END_X = -320;
+
+/*
+  速度之後一定會調。
+  先用 360，讓障礙物不會太快。
+*/
+const WIND_OBSTACLE_SPEED = 700;
+
+/*
+  三種障礙 pattern：
+  middle：中開口，上下都有障礙
+  upper：上開口，只有下方障礙
+  lower：下開口，只有上方障礙
+*/
+let windCurrentObstaclePattern = "middle";
+const WIND_OBSTACLE_PATTERNS = ["middle", "upper", "lower"];
+
+const WIND_MIDDLE_GAP_TOP = 900;
+const WIND_MIDDLE_GAP_HEIGHT = 50;
+
+const WIND_UPPER_OBSTACLE_TOP = 750;
+const WIND_LOWER_OBSTACLE_BOTTOM = 1200;
+
+function applyWindObstaclePattern(pattern) {
+  if (!windObstacleTop || !windObstacleBottom) return;
+
+  // 記住目前是哪一種障礙物組合，給粉櫻花路線使用
+  windCurrentObstaclePattern = pattern;
+
+  const obstacleH = 1200;
+
+  // 中開口：上下都有障礙物
+  const middleGapTop = WIND_MIDDLE_GAP_TOP;
+  const middleGapHeight = WIND_MIDDLE_GAP_HEIGHT;
+  const middleGapBottom = middleGapTop + middleGapHeight;
+
+  // 上開口：只有下方障礙物
+  const upperObstacleTop = WIND_UPPER_OBSTACLE_TOP;
+
+  // 下開口：只有上方障礙物
+  const lowerObstacleBottom = WIND_LOWER_OBSTACLE_BOTTOM;
+
+  if (pattern === "middle") {
+    windObstacleTop.style.display = "block";
+    windObstacleBottom.style.display = "block";
+
+    windObstacleTop.style.top = `${middleGapTop - obstacleH}px`;
+    windObstacleBottom.style.top = `${middleGapBottom}px`;
+  }
+
+  if (pattern === "upper") {
+    windObstacleTop.style.display = "none";
+    windObstacleBottom.style.display = "block";
+
+    windObstacleBottom.style.top = `${upperObstacleTop}px`;
+  }
+
+  if (pattern === "lower") {
+    windObstacleTop.style.display = "block";
+    windObstacleBottom.style.display = "none";
+
+    windObstacleTop.style.top = `${lowerObstacleBottom - obstacleH}px`;
+  }
+}
+
+function resetWindObstacle() {
+  windObstacleX = WIND_OBSTACLE_START_X;
+  windObstaclePatternIndex = 0;
+
+  windBonusX = WIND_BONUS_START_X;
+  windBonusFormationIndex = 0;
+
+  applyWindObstaclePattern(WIND_OBSTACLE_PATTERNS[windObstaclePatternIndex]);
+  applyWindObstaclePosition();
+
+  applyWindBonusFormation(WIND_BONUS_FORMATION_ORDER[windBonusFormationIndex]);
+
+  resetWindRouteCollection();
+  resetWindBonusCollection();
+
+  updateWindSakuraTrail();
+  updateWindGoldRoute();
+  updateWindSakuraBonus();
+  updateWindBonusGold();
+}
+
+
+
+function applyWindObstaclePosition() {
+  if (!windObstacleGroup) return;
+  windObstacleGroup.style.transform = `translateX(${windObstacleX}px)`;
+}
+
+function updateWindObstacle(dt) {
+  if (!windObstacleGroup) return;
+
+  windObstacleX -= WIND_OBSTACLE_SPEED * dt;
+
+  if (windObstacleX < WIND_OBSTACLE_END_X) {
+  windObstacleX = WIND_OBSTACLE_RESET_X;
+
+ const nextPattern = getRandomWindObstaclePattern();
+applyWindObstaclePattern(nextPattern);
+resetWindRouteCollection();
+
+windBonusX = WIND_BONUS_START_X;
+
+const nextFormation = getRandomWindBonusFormation();
+applyWindBonusFormation(nextFormation);
+resetWindBonusCollection();
+
+  console.log("[WindGame] obstacle pattern:", nextPattern);
+  console.log("[WindGame] bonus formation:", nextFormation);
+}
+
+  applyWindObstaclePosition();
+}
+
+/* =========================
+   Wind Game Sakura Trail
+========================= */
+
+const windSakuraTrail = document.getElementById("windSakuraTrail");
+
+const WIND_ROUTE_SAKURA_COUNT = 8;
+const WIND_ROUTE_SAKURA_SRC = "images/wind-sakura-pink.png";
+
+/*
+  這些是相對於障礙物左側的 X 位置。
+  負數代表在障礙物前方，讓玩家先看到引導線。
+*/
+const WIND_ROUTE_LOCAL_XS = [-240, -140, -40, 60, 160, 260, 360, 460];
+
+let windRouteSakuraEls = [];
+
+function initWindSakuraTrail() {
+  if (!windSakuraTrail) return;
+
+  if (windRouteSakuraEls.length > 0) return;
+
+  for (let i = 0; i < WIND_ROUTE_SAKURA_COUNT; i++) {
+    const img = document.createElement("img");
+    img.src = WIND_ROUTE_SAKURA_SRC;
+    img.className = "wind-route-sakura";
+    img.alt = "";
+
+    windSakuraTrail.appendChild(img);
+    windRouteSakuraEls.push(img);
+  }
+}
+
+function windRouteEase(t) {
+  return t * t * (3 - 2 * t);
+}
+
+function getWindSakuraTargetY(pattern) {
+  if (pattern === "middle") {
+    return WIND_MIDDLE_GAP_TOP + WIND_MIDDLE_GAP_HEIGHT / 2;
+  }
+
+  if (pattern === "upper") {
+    // 下方障礙物從 750 開始，所以引導玩家往上方空間
+    return WIND_UPPER_OBSTACLE_TOP - 230;
+  }
+
+  if (pattern === "lower") {
+    // 上方障礙物到 1200，所以引導玩家往下方空間
+    return WIND_LOWER_OBSTACLE_BOTTOM + 230;
+  }
+
+  return 960;
+}
+
+function getWindSakuraY(pattern, index) {
+  const t = WIND_ROUTE_SAKURA_COUNT <= 1
+    ? 1
+    : index / (WIND_ROUTE_SAKURA_COUNT - 1);
+
+  const eased = windRouteEase(t);
+
+  /*
+    起點先抓接近畫面中央的高度。
+    後面逐漸往該 pattern 的通過區域靠近。
+  */
+  const startY = 940;
+  const targetY = getWindSakuraTargetY(pattern);
+
+  return startY + (targetY - startY) * eased;
+}
+
+function updateWindSakuraTrail() {
+  if (!windSakuraTrail) return;
+
+  initWindSakuraTrail();
+
+  const pattern = windCurrentObstaclePattern || "middle";
+
+  for (let i = 0; i < windRouteSakuraEls.length; i++) {
+    const el = windRouteSakuraEls[i];
+    if (!el) continue;
+
+    // 已經被吃掉的櫻花，維持隱藏
+    if (windRouteSakuraCollected[i] === true) {
+      el.style.display = "none";
+      continue;
+    }
+
+    const localX = WIND_ROUTE_LOCAL_XS[i] ?? 0;
+    const x = windObstacleX + localX;
+    const y = getWindSakuraY(pattern, i);
+
+    // 沒被吃掉的櫻花，重設顯示
+    el.style.display = "block";
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+  }
+}
+
+/* =========================
+   Wind Game Bonus Sakura Formations
+========================= */
+
+const windSakuraBonus = document.getElementById("windSakuraBonus");
+
+const WIND_BONUS_SAKURA_SRC = "images/wind-sakura-pink.png";
+
+let windBonusSakuraEls = [];
+let windCurrentBonusFormation = "rectangle";
+let windBonusFormationIndex = 0;
+
+const WIND_BONUS_PHASE_OFFSET = 1000;
+
+let windBonusX = WIND_OBSTACLE_START_X - WIND_BONUS_PHASE_OFFSET;
+
+const WIND_BONUS_START_X = WIND_OBSTACLE_START_X - WIND_BONUS_PHASE_OFFSET;
+const WIND_BONUS_END_X = WIND_OBSTACLE_END_X;
+const WIND_BONUS_SPEED = WIND_OBSTACLE_SPEED;
+
+
+const WIND_BONUS_FORMATIONS = {
+  rectangle: [
+    // 上排
+    { x: 0, y: 700 },
+    { x: 120, y: 700 },
+    { x: 240, y: 700 },
+    { x: 360, y: 700 },
+
+    // 下排
+    { x: 0, y: 1040 },
+    { x: 120, y: 1040 },
+    { x: 240, y: 1040 },
+    { x: 360, y: 1040 },
+  ],
+
+  diamond: [
+    // 較大的菱形輪廓，中心留給金櫻花
+    { x: 180, y: 560 },
+
+    { x: 60, y: 680 },
+    { x: 300, y: 680 },
+
+    { x: -60, y: 800 },
+    { x: 420, y: 800 },
+
+    { x: -60, y: 940 },
+    { x: 420, y: 940 },
+
+    { x: 60, y: 1060 },
+    { x: 300, y: 1060 },
+
+    { x: 180, y: 1180 },
+  ],
+
+  verticalLine: [
+    // 名稱先沿用 verticalLine，避免其他程式碼要跟著改
+    // 實際圖形改成金字塔：頂端留給金櫻花，不放粉櫻花
+
+    // 第二層
+    { x: 120, y: 800 },
+    { x: 240, y: 800 },
+
+    // 第三層
+    { x: 60, y: 920 },
+    { x: 180, y: 920 },
+    { x: 300, y: 920 },
+
+    // 第四層
+    { x: 0, y: 1040 },
+    { x: 120, y: 1040 },
+    { x: 240, y: 1040 },
+    { x: 360, y: 1040 },
+  ],
+};
+
+const WIND_BONUS_FORMATION_ORDER = [
+  "rectangle",
+  "diamond",
+  "verticalLine",
+];
+
+function ensureWindBonusSakuraCount(count) {
+  if (!windSakuraBonus) return;
+
+  while (windBonusSakuraEls.length < count) {
+    const img = document.createElement("img");
+    img.src = WIND_BONUS_SAKURA_SRC;
+    img.className = "wind-bonus-sakura";
+    img.alt = "";
+
+    windSakuraBonus.appendChild(img);
+    windBonusSakuraEls.push(img);
+  }
+
+  for (let i = 0; i < windBonusSakuraEls.length; i++) {
+    windBonusSakuraEls[i].style.display = i < count ? "block" : "none";
+  }
+}
+
+
+function applyWindBonusFormation(name) {
+  windCurrentBonusFormation = name;
+
+  const points = WIND_BONUS_FORMATIONS[name] || [];
+  ensureWindBonusSakuraCount(points.length);
+
+  updateWindSakuraBonus();
+}
+
+function updateWindSakuraBonus() {
+  if (!windSakuraBonus) return;
+
+  const points = WIND_BONUS_FORMATIONS[windCurrentBonusFormation] || [];
+
+  ensureWindBonusSakuraCount(points.length);
+
+  for (let i = 0; i < windBonusSakuraEls.length; i++) {
+    const el = windBonusSakuraEls[i];
+    const point = points[i];
+
+    if (!point) {
+      el.style.display = "none";
+      continue;
+    }
+
+    if (windBonusSakuraCollected[i] === true) {
+      el.style.display = "none";
+      continue;
+    }
+
+    const x = windBonusX + point.x;
+    const y = point.y;
+
+    el.style.display = "block";
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+  }
+}
+
+function updateWindBonus(dt) {
+  windBonusX -= WIND_BONUS_SPEED * dt;
+
+  updateWindSakuraBonus();
+}
+
+
+const WIND_OBSTACLE_MID_X =
+  (WIND_OBSTACLE_START_X + WIND_OBSTACLE_END_X) / 2;
+
+console.log("bonus midpoint should be:", WIND_OBSTACLE_MID_X);
+
+/* =========================
+   Wind Game Gold Route Sakura
+========================= */
+
+const windGoldRoute = document.getElementById("windGoldRoute");
+
+const WIND_GOLD_ROUTE_SRC = "images/wind-sakura-gold.png";
+
+let windGoldRouteEl = null;
+
+/*
+  金櫻花比粉櫻花更靠近障礙物。
+*/
+const WIND_GOLD_ROUTE_LOCAL_X = 120;
+
+/*
+  中開口金櫻花的位置：
+  放在開口上半部，靠近上方障礙物，但不要貼到障礙物。
+*/
+const WIND_GOLD_MIDDLE_Y_OFFSET = 160;
+
+
+function initWindGoldRoute() {
+  if (!windGoldRoute) return;
+  if (windGoldRouteEl) return;
+
+  const img = document.createElement("img");
+  img.src = WIND_GOLD_ROUTE_SRC;
+  img.className = "wind-route-gold";
+  img.alt = "";
+
+  windGoldRoute.appendChild(img);
+  windGoldRouteEl = img;
+}
+
+function updateWindGoldRoute() {
+  if (!windGoldRoute) return;
+
+  initWindGoldRoute();
+
+  if (!windGoldRouteEl) return;
+
+  /*
+    只在中開口出現。
+    上開口、下開口直接隱藏。
+  */
+  if (windCurrentObstaclePattern !== "middle") {
+    windGoldRouteEl.style.display = "none";
+    return;
+  }
+
+if (windGoldRouteCollected) {
+  windGoldRouteEl.style.display = "none";
+  return;
+}
+
+  /*
+    如果你有加 WIND_ROUTE_X_OFFSET，金櫻花也跟著吃同一個偏移。
+    沒有的話就自動當 0。
+  */
+  const routeOffset =
+    typeof WIND_ROUTE_X_OFFSET !== "undefined"
+      ? WIND_ROUTE_X_OFFSET
+      : 0;
+
+  const x = windObstacleX + WIND_GOLD_ROUTE_LOCAL_X + routeOffset;
+
+  /*
+    目前中開口是 900～950。
+    中心是 925。
+    金櫻花放在上半部，也就是 y = 914 左右。
+  */
+  const middleCenterY =
+    WIND_MIDDLE_GAP_TOP + WIND_MIDDLE_GAP_HEIGHT / 2;
+
+  const y = middleCenterY - WIND_GOLD_MIDDLE_Y_OFFSET;
+
+  windGoldRouteEl.style.display = "block";
+  windGoldRouteEl.style.left = `${x}px`;
+  windGoldRouteEl.style.top = `${y}px`;
+}
+
+
+/* =========================
+   Wind Game Bonus Gold Sakura
+========================= */
+
+const windBonusGold = document.getElementById("windBonusGold");
+
+const WIND_BONUS_GOLD_SRC = "images/wind-sakura-gold.png";
+
+let windBonusGoldEls = [];
+
+const WIND_BONUS_GOLD_POINTS = {
+  rectangle: [
+    // 兩排粉櫻花正中央
+    { x: 180, y: 870 },
+  ],
+
+  diamond: [
+    // 菱形正中央
+    { x: 180, y: 870 },
+  ],
+
+  verticalLine: [
+    // 金字塔頂端
+    { x: 180, y: 680 },
+  ],
+};
+
+function ensureWindBonusGoldCount(count) {
+  if (!windBonusGold) return;
+
+  while (windBonusGoldEls.length < count) {
+    const img = document.createElement("img");
+    img.src = WIND_BONUS_GOLD_SRC;
+    img.className = "wind-bonus-gold";
+    img.alt = "";
+
+    windBonusGold.appendChild(img);
+    windBonusGoldEls.push(img);
+  }
+
+  for (let i = 0; i < windBonusGoldEls.length; i++) {
+    windBonusGoldEls[i].style.display = i < count ? "block" : "none";
+  }
+}
+
+
+function updateWindBonusGold() {
+  if (!windBonusGold) return;
+
+  const points = WIND_BONUS_GOLD_POINTS[windCurrentBonusFormation] || [];
+
+  ensureWindBonusGoldCount(points.length);
+
+  for (let i = 0; i < windBonusGoldEls.length; i++) {
+    const el = windBonusGoldEls[i];
+    const point = points[i];
+
+    if (!point) {
+      el.style.display = "none";
+      continue;
+    }
+
+    if (windBonusGoldCollected[i] === true) {
+      el.style.display = "none";
+      continue;
+    }
+
+    const x = windBonusX + point.x;
+    const y = point.y;
+
+    el.style.display = "block";
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+  }
+}
+
+
+/* =========================
+   Wind Game Ghost
+========================= */
+
+
+function getRandomWindGhostSpeed() {
+  return (
+    WIND_GHOST_SPEED_MIN +
+    Math.random() * (WIND_GHOST_SPEED_MAX - WIND_GHOST_SPEED_MIN)
+  );
+}
+
+const windGhost = document.getElementById("windGhost");
+
+let windGhostX = 1600;
+let windGhostY = 960;
+let windGhostActive = false;
+
+const WIND_GHOST_START_X = 1500;
+const WIND_GHOST_END_X = -180;
+const WIND_GHOST_SPEED_MIN = 520;
+const WIND_GHOST_SPEED_MAX = 820;
+
+let windGhostSpeed = 620;
+
+const WIND_GHOST_Y_LIST = [
+  560,
+  720,
+  880,
+  1040,
+  1200,
+  1360,
+];
+
+
+function resetWindGhost() {
+  windGhostX = WIND_GHOST_START_X;
+  windGhostActive = true;
+
+  const index = Math.floor(Math.random() * WIND_GHOST_Y_LIST.length);
+  windGhostY = WIND_GHOST_Y_LIST[index];
+
+  windGhostSpeed = getRandomWindGhostSpeed();
+
+  updateWindGhost();
+}
+
+function updateWindGhost() {
+  if (!windGhost) return;
+
+  if (!windGhostActive) {
+    windGhost.classList.add("hidden");
+    return;
+  }
+
+   windGhost.classList.remove("hidden");
+  windGhost.classList.remove("ghost-defeated");
+
+  windGhost.style.left = `${windGhostX}px`;
+  windGhost.style.top = `${windGhostY}px`;
+}
+
+
+function updateWindGhostMovement(dt) {
+  if (!windGhostActive) return;
+
+  windGhostX -= windGhostSpeed * dt;
+
+  if (windGhostX < WIND_GHOST_END_X) {
+    resetWindGhost();
+    return;
+  }
+
+  updateWindGhost();
+}
+
+function defeatWindGhost() {
+  if (!windGhostActive) return;
+
+  windGhostActive = false;
+
+  if (windGhost) {
+    // 原地淡出
+    windGhost.classList.add("ghost-defeated");
+
+    setTimeout(() => {
+      windGhost.classList.add("hidden");
+
+      // 注意：這裡不要 remove ghost-defeated
+      // 等下一次 resetWindGhost() → updateWindGhost() 時再移除
+    }, 160);
+  }
+
+  addWindScore(WIND_GHOST_DEFEAT_SCORE);
+
+  if (windGhostRespawnTimer) {
+    clearTimeout(windGhostRespawnTimer);
+    windGhostRespawnTimer = null;
+  }
+
+  windGhostRespawnTimer = setTimeout(() => {
+    if (windGameState !== "playing") return;
+
+    resetWindGhost();
+  }, 700);
+}
+
+
+
+/* =========================
+   Wind Game Collectibles
+========================= */
+
+let windRouteSakuraCollected = [];
+let windGoldRouteCollected = false;
+
+let windBonusSakuraCollected = [];
+let windBonusGoldCollected = [];
+
+function resetWindRouteCollection() {
+  windRouteSakuraCollected = new Array(WIND_ROUTE_SAKURA_COUNT).fill(false);
+  windGoldRouteCollected = false;
+}
+
+function resetWindBonusCollection() {
+  const bonusPoints =
+    WIND_BONUS_FORMATIONS[windCurrentBonusFormation] || [];
+
+  const bonusGoldPoints =
+    typeof WIND_BONUS_GOLD_POINTS !== "undefined"
+      ? (WIND_BONUS_GOLD_POINTS[windCurrentBonusFormation] || [])
+      : [];
+
+  windBonusSakuraCollected = new Array(bonusPoints.length).fill(false);
+  windBonusGoldCollected = new Array(bonusGoldPoints.length).fill(false);
+}
+
+
+function isWindRectOverlap(a, b) {
+  if (!a || !b) return false;
+
+  return (
+    a.x < b.x + b.w &&
+    a.x + a.w > b.x &&
+    a.y < b.y + b.h &&
+    a.y + a.h > b.y
+  );
+}
+
+function getWindPlayerHitboxRect() {
+  return insetWindRect(
+    getWindElementGameRect(windPlayer),
+    WIND_HITBOX_INSET.player
+  );
+}
+
+function getWindSakuraHitboxRect(el) {
+  return insetWindRect(
+    getWindElementGameRect(el),
+    WIND_HITBOX_INSET.sakura
+  );
+}
+
+function getWindGoldHitboxRect(el) {
+  return insetWindRect(
+    getWindElementGameRect(el),
+    WIND_HITBOX_INSET.gold
+  );
+}
+
+function getWindSlashHitboxRect() {
+  if (!windAttackActive) return null;
+  if (!windSlash || windSlash.classList.contains("hidden")) return null;
+
+  return insetWindRect(
+    getWindElementGameRect(windSlash),
+    WIND_HITBOX_INSET.slash
+  );
+}
+
+function getWindGhostHitboxRect() {
+  if (!windGhostActive) return null;
+  if (!windGhost || windGhost.classList.contains("hidden")) return null;
+
+  return insetWindRect(
+    getWindElementGameRect(windGhost),
+    WIND_HITBOX_INSET.ghost
+  );
+}
+
+
+
+
+function getWindObstacleHitboxRects() {
+  const rects = [];
+
+  if (windObstacleTop && windObstacleTop.style.display !== "none") {
+    const topRect = insetWindRect(
+      getWindElementGameRect(windObstacleTop),
+      WIND_HITBOX_INSET.obstacleTop
+    );
+
+    if (topRect) {
+      rects.push(topRect);
+    }
+  }
+
+  if (windObstacleBottom && windObstacleBottom.style.display !== "none") {
+    const bottomRect = insetWindRect(
+      getWindElementGameRect(windObstacleBottom),
+      WIND_HITBOX_INSET.obstacleBottom
+    );
+
+    if (bottomRect) {
+      rects.push(bottomRect);
+    }
+  }
+
+  return rects;
+}
+
+
+
+
+
+function updateWindCollectiblesCollision() {
+  if (windGameState !== "playing") return;
+
+  const playerRect = getWindPlayerHitboxRect();
+  if (!playerRect) return;
+
+  // 路線粉櫻花：+1
+  for (let i = 0; i < windRouteSakuraEls.length; i++) {
+    const el = windRouteSakuraEls[i];
+    if (!el) continue;
+
+    if (windRouteSakuraCollected[i]) {
+      el.style.display = "none";
+      continue;
+    }
+
+    if (el.style.display === "none") continue;
+
+    const sakuraRect = getWindSakuraHitboxRect(el);
+
+    if (isWindRectOverlap(playerRect, sakuraRect)) {
+      windRouteSakuraCollected[i] = true;
+      el.style.display = "none";
+      addWindScore(1);
+    }
+  }
+
+  
+
+  // 中開口金櫻花：+10
+  if (windGoldRouteEl) {
+    if (windGoldRouteCollected) {
+      windGoldRouteEl.style.display = "none";
+    } else if (windGoldRouteEl.style.display !== "none") {
+      const goldRect = getWindGoldHitboxRect(windGoldRouteEl);
+
+      if (isWindRectOverlap(playerRect, goldRect)) {
+        windGoldRouteCollected = true;
+        windGoldRouteEl.style.display = "none";
+        addWindScore(10);
+      }
+    }
+  }
+
+  // bonus 粉櫻花：+1
+  for (let i = 0; i < windBonusSakuraEls.length; i++) {
+    const el = windBonusSakuraEls[i];
+    if (!el) continue;
+
+    if (windBonusSakuraCollected[i]) {
+      el.style.display = "none";
+      continue;
+    }
+
+    if (el.style.display === "none") continue;
+
+    const sakuraRect = getWindSakuraHitboxRect(el);
+
+    if (isWindRectOverlap(playerRect, sakuraRect)) {
+      windBonusSakuraCollected[i] = true;
+      el.style.display = "none";
+      addWindScore(1);
+    }
+  }
+
+  // bonus 金櫻花：+10
+  if (typeof windBonusGoldEls !== "undefined") {
+    for (let i = 0; i < windBonusGoldEls.length; i++) {
+      const el = windBonusGoldEls[i];
+      if (!el) continue;
+
+      if (windBonusGoldCollected[i]) {
+        el.style.display = "none";
+        continue;
+      }
+
+      if (el.style.display === "none") continue;
+
+      const goldRect = getWindGoldHitboxRect(el);
+
+      if (isWindRectOverlap(playerRect, goldRect)) {
+        windBonusGoldCollected[i] = true;
+        el.style.display = "none";
+        addWindScore(10);
+      }
+    }
+  }
+}
+
+function updateWindObstacleCollision() {
+  if (windGameState !== "playing") return;
+
+  const playerRect = getWindPlayerHitboxRect();
+  if (!playerRect) return;
+
+  const obstacleRects = getWindObstacleHitboxRects();
+
+  for (const obstacleRect of obstacleRects) {
+    if (isWindRectOverlap(playerRect, obstacleRect)) {
+      windGameOver();
+      return;
+    }
+  }
+}
+
+function updateWindSlashGhostCollision() {
+  if (windGameState !== "playing") return;
+  if (!windAttackActive) return;
+  if (!windGhostActive) return;
+
+  const slashRect = getWindSlashHitboxRect();
+  const ghostRect = getWindGhostHitboxRect();
+
+  if (!slashRect || !ghostRect) return;
+
+  if (isWindRectOverlap(slashRect, ghostRect)) {
+    defeatWindGhost();
+  }
+}
+
+
+function updateWindGhostCollision() {
+  if (windGameState !== "playing") return;
+  if (!windGhostActive) return;
+  if (!windGhost || windGhost.classList.contains("hidden")) return;
+
+  const playerRect = getWindPlayerHitboxRect();
+  if (!playerRect) return;
+
+  const ghostRect = insetWindRect(
+    getWindElementGameRect(windGhost),
+    WIND_HITBOX_INSET.ghost
+  );
+
+  if (isWindRectOverlap(playerRect, ghostRect)) {
+    windGameOver();
+  }
+}
+
+
+
+
+/* =========================
+   Wind Game Debug Hitboxes
+========================= */
+
+const WIND_DEBUG_HITBOX = false;
+const WIND_DEBUG_GHOST_HITBOX = false;
+const WIND_DEBUG_SLASH_HITBOX = false;
+
+const windHitboxLayer = document.getElementById("windHitboxLayer");
+
+let windDebugHitboxEls = [];
+
+function clearWindDebugHitboxes() {
+  if (!windHitboxLayer) return;
+
+  for (const el of windDebugHitboxEls) {
+    el.remove();
+  }
+
+  windDebugHitboxEls = [];
+}
+
+function drawWindDebugHitbox(rect, type) {
+  if (
+    !WIND_DEBUG_HITBOX &&
+    !WIND_DEBUG_GHOST_HITBOX &&
+    !WIND_DEBUG_SLASH_HITBOX
+  ) return;
+
+  if (!windHitboxLayer) return;
+  if (!rect) return;
+
+  const box = document.createElement("div");
+  box.className = `wind-hitbox wind-hitbox-${type}`;
+
+  box.style.left = `${rect.x}px`;
+  box.style.top = `${rect.y}px`;
+  box.style.width = `${rect.w}px`;
+  box.style.height = `${rect.h}px`;
+
+  windHitboxLayer.appendChild(box);
+  windDebugHitboxEls.push(box);
+}
+
+
+function getWindElementGameRect(el) {
+  if (!el || !gameRoot) return null;
+
+  const rootRect = gameRoot.getBoundingClientRect();
+  const elRect = el.getBoundingClientRect();
+
+  const scaleX = 1080 / rootRect.width;
+  const scaleY = 1920 / rootRect.height;
+
+  return {
+    x: (elRect.left - rootRect.left) * scaleX,
+    y: (elRect.top - rootRect.top) * scaleY,
+    w: elRect.width * scaleX,
+    h: elRect.height * scaleY,
+  };
+}
+
+function insetWindRect(rect, inset) {
+  if (!rect) return null;
+
+  const left = inset.left || 0;
+  const right = inset.right || 0;
+  const top = inset.top || 0;
+  const bottom = inset.bottom || 0;
+
+  return {
+    x: rect.x + left,
+    y: rect.y + top,
+    w: Math.max(0, rect.w - left - right),
+    h: Math.max(0, rect.h - top - bottom),
+  };
+}
+
+
+const WIND_HITBOX_INSET = {
+  player: {
+    left: 150,
+    right: 140,
+    top: 70,
+    bottom: 50,
+  },
+
+  obstacleTop: {
+    left: 24,
+    right: 24,
+    top: 0,
+    bottom: 300,
+  },
+
+  obstacleBottom: {
+    left: 24,
+    right: 24,
+    top: 300,
+    bottom: 0,
+  },
+
+  sakura: {
+    left: 12,
+    right: 12,
+    top: 12,
+    bottom: 12,
+  },
+
+  gold: {
+    left: 14,
+    right: 14,
+    top: 14,
+    bottom: 14,
+  },
+
+ghost: {
+  left: 50,
+  right: 75,
+  top: 60,
+  bottom: 60,
+},
+
+slash: {
+  left: 120,
+  right: 120,
+  top: 60,
+  bottom: 60,
+},
+
+};
+
+
+function updateWindDebugHitboxes() {
+  if (
+    !WIND_DEBUG_HITBOX &&
+    !WIND_DEBUG_GHOST_HITBOX &&
+    !WIND_DEBUG_SLASH_HITBOX
+  ) return;
+
+  clearWindDebugHitboxes();
+
+  // 劍氣 hitbox
+  if (WIND_DEBUG_SLASH_HITBOX) {
+    const slashRect = getWindSlashHitboxRect();
+    drawWindDebugHitbox(slashRect, "obstacle");
+  }
+
+  // 怪物 hitbox
+  if (
+    WIND_DEBUG_GHOST_HITBOX &&
+    windGhostActive &&
+    windGhost &&
+    !windGhost.classList.contains("hidden")
+  ) {
+    const ghostRect = getWindGhostHitboxRect();
+    drawWindDebugHitbox(ghostRect, "obstacle");
+  }
+
+  // 如果需要全 debug，再畫其他碰撞箱
+  if (!WIND_DEBUG_HITBOX) return;
+
+  // 玩家 hitbox
+  const playerRect = insetWindRect(
+    getWindElementGameRect(windPlayer),
+    WIND_HITBOX_INSET.player
+  );
+  drawWindDebugHitbox(playerRect, "player");
+
+  // 障礙物 hitbox
+  if (windObstacleTop && windObstacleTop.style.display !== "none") {
+    const topRect = insetWindRect(
+      getWindElementGameRect(windObstacleTop),
+      WIND_HITBOX_INSET.obstacleTop
+    );
+    drawWindDebugHitbox(topRect, "obstacle");
+  }
+
+  if (windObstacleBottom && windObstacleBottom.style.display !== "none") {
+    const bottomRect = insetWindRect(
+      getWindElementGameRect(windObstacleBottom),
+      WIND_HITBOX_INSET.obstacleBottom
+    );
+    drawWindDebugHitbox(bottomRect, "obstacle");
+  }
+
+  // 路線粉櫻花 hitbox
+  for (const el of windRouteSakuraEls) {
+    if (!el || el.style.display === "none") continue;
+
+    const rect = insetWindRect(
+      getWindElementGameRect(el),
+      WIND_HITBOX_INSET.sakura
+    );
+    drawWindDebugHitbox(rect, "sakura");
+  }
+
+  // 中開口金櫻花 hitbox
+  if (windGoldRouteEl && windGoldRouteEl.style.display !== "none") {
+    const rect = insetWindRect(
+      getWindElementGameRect(windGoldRouteEl),
+      WIND_HITBOX_INSET.gold
+    );
+    drawWindDebugHitbox(rect, "gold");
+  }
+
+  // bonus 粉櫻花 hitbox
+  for (const el of windBonusSakuraEls) {
+    if (!el || el.style.display === "none") continue;
+
+    const rect = insetWindRect(
+      getWindElementGameRect(el),
+      WIND_HITBOX_INSET.sakura
+    );
+    drawWindDebugHitbox(rect, "sakura");
+  }
+
+  // bonus 金櫻花 hitbox
+  if (typeof windBonusGoldEls !== "undefined") {
+    for (const el of windBonusGoldEls) {
+      if (!el || el.style.display === "none") continue;
+
+      const rect = insetWindRect(
+        getWindElementGameRect(el),
+        WIND_HITBOX_INSET.gold
+      );
+      drawWindDebugHitbox(rect, "gold");
+    }
+  }
+}
+
+
+/* =========================
+   Wind Game Score
+========================= */
+
+const windScoreEl = document.getElementById("windScore");
+
+let windScore = 0;
+
+function resetWindScore() {
+  windScore = 0;
+  updateWindScoreDisplay();
+}
+
+function addWindScore(amount) {
+  windScore += amount;
+  updateWindScoreDisplay();
+}
+
+function updateWindScoreDisplay() {
+  if (!windScoreEl) return;
+  windScoreEl.textContent = windScore;
+}
+
+
+
+function resetWindGameSession() {
+  // 停止遊戲 loop
+ if (windAnimFrame) {
+  cancelAnimationFrame(windAnimFrame);
+  windAnimFrame = null;
+}
+
+clearWindCountdown();
+clearWindDebugHitboxes();
+
+  // 重置狀態
+  setWindGameState("idle");
+
+  // 重置操作狀態
+  windFlyPressed = false;
+
+  windAttackActive = false;
+
+if (windAttackTimer) {
+  clearTimeout(windAttackTimer);
+  windAttackTimer = null;
+}
+
+if (windGhostRespawnTimer) {
+  clearTimeout(windGhostRespawnTimer);
+  windGhostRespawnTimer = null;
+}
+
+  // 重置玩家物理
+  windPlayerY = 0;
+  windPlayerVY = 0;
+  windLastTime = 0;
+  applyWindPlayerPosition();
+
+  // 重置角色差分
+  if (windChinatsu) {
+    windChinatsu.src = "images/wind-chinatsu-down.png";
+  }
+
+  if (windChifuyu) {
+    windChifuyu.src = "images/wind-chifuyu-idle.png";
+  }
+
+  if (windSlash) {
+    windSlash.classList.add("hidden");
+    windSlash.classList.remove("slash-active");
+  }
+
+  // 重置分數
+  resetWindScore();
+
+  // 重置障礙物、櫻花、bonus、收集狀態
+  resetWindObstacle();
+
+
+  resetWindGhost();
+
+  // 清除 debug hitbox
+  clearWindDebugHitboxes();
+}
+
+
+
+
+
+
 
 
 
@@ -345,6 +2141,25 @@ function goToScreen(fromScreen, toScreen, holdTime = 600) {
 btnOmikuji.addEventListener("click", () => {
   goToScreen(menuScreen, omikujiScreen, 600);
 });
+
+if (btnMission) {
+  btnMission.addEventListener("click", () => {
+    prepareWindGameBackground();
+    resetWindGameSession();
+
+    enterWindGameAudioMode();
+
+    if (typeof goToScreen === "function" && menuScreen && windGameScreen) {
+      goToScreen(menuScreen, windGameScreen, 600);
+
+      setTimeout(() => {
+        startWindCountdown();
+      }, 1000);
+    } else {
+      console.warn("[Mission] goToScreen/menuScreen/windGameScreen not ready");
+    }
+  });
+}
 
 // ===== Omikuji / Omamori 右上角 Menu 按鈕 =====
 const btnOmikujiMenu = document.getElementById("btnOmikujiMenu");
@@ -384,6 +2199,16 @@ if (btnOmamoriMenu) {
   });
 }
 
+if (btnWindGameMenu) {
+  btnWindGameMenu.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    resetWindGameSession();
+    switchToShrineBgm();
+    backToMenuFrom(windGameScreen);
+  });
+}
 
 
 // ===== 1) DOM：畫面與按鈕 =====
@@ -1691,11 +3516,15 @@ function playUISound(opts = {}) {
 (function bindGlobalButtonSFX() {
   // 這些情況我們不想播 UI click：例如分享/儲存（會觸發系統面板）、關閉 modal 等
   // 你可依自己喜好增減
-  const EXCLUDE_IDS = new Set([
-    "shareBtn",
-    "saveBtn",
-    "closeModal",
-  ]);
+const EXCLUDE_IDS = new Set([
+  "shareBtn",
+  "saveBtn",
+  "closeModal",
+
+  // Wind Game：不要使用通用按鈕音效
+  "btnWindFly",
+  "btnWindAttack",
+]);
 
   // 有些按鈕（例如抽籤 drawBtn）你可能想保留它自己那套 playDrawSound()
   // 所以也把它排除，避免「按一下播兩次」
@@ -1745,14 +3574,32 @@ function playUISound(opts = {}) {
 
 function playBGMWithFadeIn() {
   if (!bgm) return;
+
+  // 如果正在小遊戲音訊模式，不准神社 BGM 自動復活
+  if (typeof windGameAudioMode !== "undefined" && windGameAudioMode) {
+    bgm.pause();
+    bgm.currentTime = 0;
+    return;
+  }
+
   bgm.volume = 0;
 
   bgm.play().catch(() => {
-    document.addEventListener("click", () => bgm.play(), { once: true });
+    document.addEventListener("click", () => {
+      if (typeof windGameAudioMode !== "undefined" && windGameAudioMode) return;
+      bgm.play();
+    }, { once: true });
   });
 
   let volume = 0;
   const fade = setInterval(() => {
+    if (typeof windGameAudioMode !== "undefined" && windGameAudioMode) {
+      clearInterval(fade);
+      bgm.pause();
+      bgm.currentTime = 0;
+      return;
+    }
+
     volume += 0.05;
     if (volume >= 1) {
       volume = 1;

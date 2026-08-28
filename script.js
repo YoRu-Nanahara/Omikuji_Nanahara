@@ -631,6 +631,14 @@ function warmupWindGameDom() {
     initWindGoldRoute();
   }
 
+  if (typeof ensureWindBonusSakuraCount === "function") {
+    ensureWindBonusSakuraCount(WIND_BONUS_SAKURA_POOL_SIZE);
+  }
+
+  if (typeof ensureWindBonusGoldCount === "function") {
+    ensureWindBonusGoldCount(WIND_BONUS_GOLD_POOL_SIZE);
+  }
+
   if (typeof updateWindSakuraTrail === "function") {
     updateWindSakuraTrail();
   }
@@ -889,8 +897,11 @@ function startWindGameLoop() {
       return;
     }
 
-    const dt = Math.min((now - windLastTime) / 1000, 0.033);
-    windLastTime = now;
+    let dt = (now - windLastTime) / 1000;
+windLastTime = now;
+
+// 避免切到背景或超大卡頓時瞬移，但不要卡得太死
+dt = Math.min(dt, 0.08);
 
   updateWindPlayerPhysics(dt);
 updateWindObstacle(dt);
@@ -1021,7 +1032,7 @@ let windCountdownTimer = null;
 
 function setWindGameState(nextState) {
   windGameState = nextState;
-  console.log("[WindGame] state:", windGameState);
+ 
 }
 
 function clearWindCountdown() {
@@ -1095,7 +1106,7 @@ function startWindPlaying() {
   applyWindPlayerPosition();
   startWindGameLoop();
 
-  console.log("[WindGame] Start!");
+ 
 }
 
 
@@ -1474,27 +1485,27 @@ function updateWindSakuraBonus() {
 
   const points = WIND_BONUS_FORMATIONS[windCurrentBonusFormation] || [];
 
-  ensureWindBonusSakuraCount(points.length);
-
   for (let i = 0; i < windBonusSakuraEls.length; i++) {
     const el = windBonusSakuraEls[i];
     const point = points[i];
 
+    if (!el) continue;
+
     if (!point) {
-      el.style.display = "none";
+      if (el.style.display !== "none") el.style.display = "none";
       continue;
     }
 
     if (windBonusSakuraCollected[i] === true) {
-      el.style.display = "none";
+      if (el.style.display !== "none") el.style.display = "none";
       continue;
     }
 
     const x = windBonusX + point.x;
     const y = point.y;
 
-    el.style.display = "block";
-setWindElementPosition(el, x, y);
+    if (el.style.display !== "block") el.style.display = "block";
+    setWindElementPosition(el, x, y);
   }
 }
 
@@ -1619,6 +1630,10 @@ const WIND_BONUS_GOLD_POINTS = {
   ],
 };
 
+const WIND_BONUS_GOLD_POOL_SIZE = Math.max(
+  ...Object.values(WIND_BONUS_GOLD_POINTS).map((points) => points.length)
+);
+
 function ensureWindBonusGoldCount(count) {
   if (!windBonusGold) return;
 
@@ -1643,27 +1658,27 @@ function updateWindBonusGold() {
 
   const points = WIND_BONUS_GOLD_POINTS[windCurrentBonusFormation] || [];
 
-  ensureWindBonusGoldCount(points.length);
-
   for (let i = 0; i < windBonusGoldEls.length; i++) {
     const el = windBonusGoldEls[i];
     const point = points[i];
 
+    if (!el) continue;
+
     if (!point) {
-      el.style.display = "none";
+      if (el.style.display !== "none") el.style.display = "none";
       continue;
     }
 
     if (windBonusGoldCollected[i] === true) {
-      el.style.display = "none";
+      if (el.style.display !== "none") el.style.display = "none";
       continue;
     }
 
     const x = windBonusX + point.x;
     const y = point.y;
 
-   el.style.display = "block";
-setWindElementPosition(el, x, y);
+    if (el.style.display !== "block") el.style.display = "block";
+    setWindElementPosition(el, x, y);
   }
 }
 

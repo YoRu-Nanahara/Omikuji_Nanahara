@@ -819,20 +819,28 @@ function startWindAttack() {
   }
 
   if (windSlash) {
-    windSlash.classList.remove("hidden");
-    windSlash.classList.remove("slash-active");
+    windSlash.classList.remove(
+      "hidden",
+      "slash-active",
+      "slash-active-a",
+      "slash-active-b"
+    );
 
-    // 重新觸發動畫
-    void windSlash.offsetWidth;
+    windSlashAnimToggle = !windSlashAnimToggle;
 
-    windSlash.classList.add("slash-active");
+    requestAnimationFrame(() => {
+      if (!windSlash) return;
+      if (!windAttackActive) return;
+
+      windSlash.classList.add(
+        windSlashAnimToggle ? "slash-active-a" : "slash-active-b"
+      );
+    });
   }
 
   windAttackTimer = setTimeout(() => {
     endWindAttack();
   }, 280);
-
- 
 }
 
 function endWindAttack() {
@@ -848,7 +856,11 @@ function endWindAttack() {
   }
 
   if (windSlash) {
-    windSlash.classList.remove("slash-active");
+    windSlash.classList.remove(
+      "slash-active",
+      "slash-active-a",
+      "slash-active-b"
+    );
     windSlash.classList.add("hidden");
   }
 }
@@ -858,6 +870,7 @@ function endWindAttack() {
 let windAttackActive = false;
 let windAttackTimer = null;
 let windGhostRespawnTimer = null;
+let windSlashAnimToggle = false;
 
 const WIND_GHOST_DEFEAT_SCORE = 10;
 
@@ -1031,8 +1044,12 @@ if (windGhostRespawnTimer) {
 }
 
 if (windSlash) {
-  windSlash.classList.remove("slash-active");
-  windSlash.classList.add("hidden");
+windSlash.classList.remove(
+  "slash-active",
+  "slash-active-a",
+  "slash-active-b"
+);
+windSlash.classList.add("hidden");
 }
 
   if (windChinatsu) {
@@ -1743,8 +1760,8 @@ const WIND_GHOST_END_X = -180;
 const WIND_GHOST_SPEED_MIN = 520;
 const WIND_GHOST_SPEED_MAX = 820;
 
-const WIND_GHOST_W = 140;
-const WIND_GHOST_H = 140;
+const WIND_GHOST_W = 300;
+const WIND_GHOST_H = 300;
 
 let windGhostSpeed = 620;
 
@@ -2470,8 +2487,12 @@ if (windGhostRespawnTimer) {
   }
 
   if (windSlash) {
-    windSlash.classList.add("hidden");
-    windSlash.classList.remove("slash-active");
+windSlash.classList.remove(
+  "slash-active",
+  "slash-active-a",
+  "slash-active-b"
+);
+windSlash.classList.add("hidden");
   }
 
   // 重置分數

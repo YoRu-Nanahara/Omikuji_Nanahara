@@ -1372,12 +1372,17 @@ button {
   z-index: 20;
 
   opacity: 0;
-  transform: translateX(0) scale(0.9);
+  transform: translate3d(0, 0, 0) scale(0.9);
   transform-origin: center center;
+
+  will-change: transform, opacity;
+  backface-visibility: hidden;
 }
 
 /* 攻擊時啟用：劍氣向前飛出並淡出 */
-.wind-player-slash.slash-active {
+.wind-player-slash.slash-active,
+.wind-player-slash.slash-active-a,
+.wind-player-slash.slash-active-b {
   opacity: 1;
   animation: windSlashWave 280ms linear forwards;
 }
@@ -1385,27 +1390,27 @@ button {
 @keyframes windSlashWave {
   0% {
     opacity: 0;
-    transform: translateX(0) scale(0.85);
+    transform: translate3d(0, 0, 0) scale(0.85);
   }
 
   12% {
     opacity: 1;
-    transform: translateX(45px) scale(0.95);
+    transform: translate3d(45px, 0, 0) scale(0.95);
   }
 
   45% {
     opacity: 0.65;
-    transform: translateX(170px) scale(1.04);
+    transform: translate3d(170px, 0, 0) scale(1.04);
   }
 
   75% {
     opacity: 0.25;
-    transform: translateX(285px) scale(1.12);
+    transform: translate3d(285px, 0, 0) scale(1.12);
   }
 
   100% {
     opacity: 0;
-    transform: translateX(390px) scale(1.18);
+    transform: translate3d(390px, 0, 0) scale(1.18);
   }
 }
 

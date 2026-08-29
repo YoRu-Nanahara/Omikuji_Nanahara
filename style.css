@@ -1347,6 +1347,11 @@ button {
 }
 
 .wind-player-layer {
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.wind-player-layer {
   position: absolute;
   inset: 0;
   width: 100%;

@@ -374,6 +374,7 @@ function prepareWindGameBackground() {
 ========================= */
 
 const windPlayer = document.getElementById("windPlayer");
+const windCrane = document.getElementById("windCrane");
 const windChinatsu = document.getElementById("windChinatsu");
 const windChifuyu = document.getElementById("windChifuyu");
 const windSlash = document.getElementById("windSlash");
@@ -523,6 +524,7 @@ function playWindSlashSound() {
 let windGameSavedNightMode = false;
 
 function enterWindGamePerformanceMode() {
+
   // 記住進小遊戲前是不是夜晚模式
   windGameSavedNightMode = document.body.classList.contains("night-mode");
 
@@ -532,11 +534,18 @@ function enterWindGamePerformanceMode() {
   // 加一個小遊戲專用 class，方便 CSS 關掉不必要效果
   document.body.classList.add("wind-game-active");
 
+  if (typeof setSakuraWindMode === "function") {
+  setSakuraWindMode("windGame");
+}
 
 }
 
 function exitWindGamePerformanceMode() {
   document.body.classList.remove("wind-game-active");
+
+  if (typeof setSakuraWindMode === "function") {
+  setSakuraWindMode("normal");
+}
 
   // 回主選單後，重新依照當下時間判斷日夜
   if (typeof updateDayNightMode === "function") {
@@ -1048,10 +1057,25 @@ document.addEventListener("visibilitychange", () => {
    Wind Game Physics
 ========================= */
 
-let windPlayerY = 0;      // 只控制相對初始位置的上下偏移
+let windPlayerY = 0;
 let windPlayerVY = 0;
 let windLastTime = 0;
 let windAnimFrame = null;
+
+// 倒數時的原地漂浮效果，只影響視覺，不影響碰撞
+let windPlayerFloatY = 0;
+let windPlayerFloatFrame = null;
+let windPlayerFloatStartTime = 0;
+
+const WIND_PLAYER_FLOAT_AMPLITUDE = 18; // 漂浮高度，數字越大上下幅度越明顯
+const WIND_PLAYER_FLOAT_SPEED = 0.004;  // 漂浮速度，數字越大越快
+
+// 角色飛行傾斜角度
+let windPlayerTilt = 0;
+
+const WIND_PLAYER_TILT_MAX = 8;        // 最大傾斜角度
+const WIND_PLAYER_TILT_FACTOR = 0.012; // 速度轉角度的比例
+const WIND_PLAYER_TILT_SMOOTH = 0.16;  // 越大越靈敏，越小越柔和
 
 const WIND_GRAVITY = 1800;       // 下墜力量，數字越大掉越快
 const WIND_FLY_FORCE = 2600;     // 按住飛行時的上升力量
@@ -1067,7 +1091,76 @@ const WIND_PLAYER_H = 289;
 
 function applyWindPlayerPosition() {
   if (!windPlayer) return;
-  windPlayer.style.transform = `translateY(${windPlayerY}px)`;
+
+  const visualY = windPlayerY + windPlayerFloatY;
+  windPlayer.style.transform = `translateY(${visualY}px)`;
+}
+
+function startWindPlayerCountdownFloat() {
+  stopWindPlayerCountdownFloat(false);
+
+  windPlayerFloatStartTime = performance.now();
+
+  function floatLoop(now) {
+    if (windGameState !== "countdown") {
+      stopWindPlayerCountdownFloat(true);
+      return;
+    }
+
+    const t = now - windPlayerFloatStartTime;
+
+    // 用 sin 做柔和上下漂浮
+    windPlayerFloatY =
+      Math.sin(t * WIND_PLAYER_FLOAT_SPEED) * WIND_PLAYER_FLOAT_AMPLITUDE;
+
+    applyWindPlayerPosition();
+
+    windPlayerFloatFrame = requestAnimationFrame(floatLoop);
+  }
+
+  windPlayerFloatFrame = requestAnimationFrame(floatLoop);
+}
+
+function stopWindPlayerCountdownFloat(resetPosition = true) {
+  if (windPlayerFloatFrame) {
+    cancelAnimationFrame(windPlayerFloatFrame);
+    windPlayerFloatFrame = null;
+  }
+
+  if (resetPosition) {
+    windPlayerFloatY = 0;
+    applyWindPlayerPosition();
+  }
+}
+
+function clampWindTilt(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function applyWindPlayerTilt() {
+  const targetTilt = clampWindTilt(
+    windPlayerVY * WIND_PLAYER_TILT_FACTOR,
+    -WIND_PLAYER_TILT_MAX,
+    WIND_PLAYER_TILT_MAX
+  );
+
+  // 平滑靠近目標角度，避免上下切換時太抖
+  windPlayerTilt += (targetTilt - windPlayerTilt) * WIND_PLAYER_TILT_SMOOTH;
+
+  const transform = `rotate(${windPlayerTilt}deg)`;
+
+  // 只旋轉角色本體，不旋轉 slash
+  if (windCrane) windCrane.style.transform = transform;
+  if (windChinatsu) windChinatsu.style.transform = transform;
+  if (windChifuyu) windChifuyu.style.transform = transform;
+}
+
+function resetWindPlayerTilt() {
+  windPlayerTilt = 0;
+
+  if (windCrane) windCrane.style.transform = "";
+  if (windChinatsu) windChinatsu.style.transform = "";
+  if (windChifuyu) windChifuyu.style.transform = "";
 }
 
 function startWindGameLoop() {
@@ -1091,6 +1184,7 @@ windLastTime = now;
 dt = Math.min(dt, 0.08);
 
   updateWindPlayerPhysics(dt);
+  applyWindPlayerTilt();
 updateWindObstacle(dt);
 updateWindSakuraTrail();
 updateWindGoldRoute();
@@ -1113,6 +1207,8 @@ windAnimFrame = requestAnimationFrame(loop);
 
   windAnimFrame = requestAnimationFrame(loop);
 }
+
+
 
 function updateWindPlayerPhysics(dt) {
   if (windFlyPressed) {
@@ -1152,6 +1248,9 @@ function updateWindPlayerPhysics(dt) {
     windGameOver();
   }
 }
+
+
+
 
 
 function windGameOver() {
@@ -1266,6 +1365,8 @@ function startWindCountdown() {
   clearWindCountdown();
   setWindGameState("countdown");
 
+  startWindPlayerCountdownFloat();
+
   const steps = ["3", "2", "1", "Start"];
   let index = 0;
 
@@ -1295,18 +1396,19 @@ function startWindCountdown() {
 function startWindPlaying() {
   setWindGameState("playing");
 
+  stopWindPlayerCountdownFloat(true);
+
   playWindGameBgmFromStart();
 
-  windPlayerY = 0;
-  windPlayerVY = 0;
-  windLastTime = performance.now();
+  stopWindPlayerCountdownFloat(true);
 
-  applyWindPlayerPosition();
-
+windPlayerY = 0;
+windPlayerVY = 0;
+windLastTime = 0;
+windPlayerFloatY = 0;
+applyWindPlayerPosition();
 
   startWindGameLoop();
-
-  // console.log("[WindGame] Start!");
 }
 
 
@@ -2631,6 +2733,7 @@ if (windGhostRespawnTimer) {
   windPlayerVY = 0;
   windLastTime = 0;
   applyWindPlayerPosition();
+  resetWindPlayerTilt();
 
   // 重置角色差分
   if (windChinatsu) {
@@ -4231,6 +4334,17 @@ window.addEventListener("load", () => {
 
 /* ===== 櫻花粒子系統 ===== */
 let windTime = 0;
+
+// normal：主介面原本飄落
+// windGame：小遊戲強風吹拂
+let sakuraWindMode = "normal";
+
+let sakuraWindPower = 1;
+let sakuraWindTargetPower = 1;
+
+const SAKURA_WIND_NORMAL = 1;
+const SAKURA_WIND_GAME = 3.2;
+
 const sakuraImages = [
   "images/sakura1.png",
   "images/sakura2.png",
@@ -4276,22 +4390,57 @@ function createPetal(randomY = false) {
   };
 }
 
+function setSakuraWindMode(mode) {
+  if (mode === "windGame") {
+    sakuraWindMode = "windGame";
+    sakuraWindTargetPower = SAKURA_WIND_GAME;
+  } else {
+    sakuraWindMode = "normal";
+    sakuraWindTargetPower = SAKURA_WIND_NORMAL;
+  }
+}
+
 function updatePetals() {
-  windTime += 0.01;
-  let windBase = Math.sin(windTime) * 1.2;
-  let windGust = Math.sin(windTime * 3) * 0.5;
-  let wind = windBase + windGust;
+  const isWindGame = sakuraWindMode === "windGame";
+
+  // 風力平滑變化，避免進出小遊戲時突然跳變
+  sakuraWindPower += (sakuraWindTargetPower - sakuraWindPower) * 0.035;
+
+  let wind = 0;
+
+  if (isWindGame) {
+    // 小遊戲：穩定往左吹，偶爾更強
+    windTime += 0.012;
+
+    const steadyWind = sakuraWindPower * 1.8;
+    const gustWave = Math.max(0, Math.sin(windTime * 1.6));
+    const gustWind = gustWave * sakuraWindPower * 0.8;
+
+    wind = steadyWind + gustWind;
+  } else {
+    // 主介面：保留原本的自然快慢節奏
+    windTime += 0.01;
+
+    const windBase = Math.sin(windTime) * 1.2;
+    const windGust = Math.sin(windTime * 3) * 0.5;
+
+    wind = windBase + windGust;
+  }
 
   sakuraCtx.clearRect(0, 0, sakuraCanvas.width, sakuraCanvas.height);
 
   petals.forEach(p => {
     sakuraCtx.save();
-    let fadeStart = sakuraCanvas.height * 0.75;
-    let fadeEnd = sakuraCanvas.height * 0.95;
+
+    const fadeStart = sakuraCanvas.height * 0.75;
+    const fadeEnd = sakuraCanvas.height * 0.95;
+
     let alpha = p.baseAlpha;
+
     if (p.y > fadeStart) {
       alpha = p.baseAlpha * (1 - (p.y - fadeStart) / (fadeEnd - fadeStart));
     }
+
     sakuraCtx.globalAlpha = Math.max(alpha, 0);
 
     sakuraCtx.translate(p.x, p.y);
@@ -4299,13 +4448,33 @@ function updatePetals() {
     sakuraCtx.drawImage(p.img, -p.size / 2, -p.size / 2, p.size, p.size);
     sakuraCtx.restore();
 
-    p.y += p.speedY;
-    p.x += p.speedX + wind * 0.3;
-    p.rotation += p.rotationSpeed;
+    if (isWindGame) {
+      // 小遊戲：強風往左吹
+      const fallBoost = 1 + (sakuraWindPower - 1) * 0.12;
+      const sideWindBoost = 1 + (sakuraWindPower - 1) * 0.65;
+      const rotateBoost = 1 + (sakuraWindPower - 1) * 0.35;
 
-    if (p.y > sakuraCanvas.height + 60) Object.assign(p, createPetal(false));
-    if (p.x > sakuraCanvas.width + 60) p.x = -60;
-    if (p.x < -60) p.x = sakuraCanvas.width + 60;
+      p.y += p.speedY * fallBoost;
+      p.x += p.speedX * sideWindBoost - wind;
+      p.rotation += p.rotationSpeed * rotateBoost;
+    } else {
+      // 主介面：原本的飄落感
+      p.y += p.speedY;
+      p.x += p.speedX + wind * 0.3;
+      p.rotation += p.rotationSpeed;
+    }
+
+    if (p.y > sakuraCanvas.height + 60) {
+      Object.assign(p, createPetal(false));
+    }
+
+    if (p.x > sakuraCanvas.width + 60) {
+      p.x = -60;
+    }
+
+    if (p.x < -60) {
+      p.x = sakuraCanvas.width + 60;
+    }
   });
 
   requestAnimationFrame(updatePetals);

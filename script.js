@@ -625,7 +625,7 @@ const WIND_GAME_IMAGE_ASSETS = [
   "images/wind-chinatsu-up.png",
   "images/wind-chinatsu-down.png",
   "images/wind-chifuyu-idle.png",
-  "images/wind-chifuyu-slash.png",
+  "images/wind-chifuyu-slash.png?v=2",
   "images/wind-slash.png",
 
   "images/wind-sakura-pink.png",
@@ -936,8 +936,8 @@ function startWindAttack() {
   }
 
   if (windChifuyu) {
-    windChifuyu.src = "images/wind-chifuyu-slash.png";
-  }
+  windChifuyu.src = "images/wind-chifuyu-slash.png?v=2";
+}
 
   if (windSlash) {
     windSlash.classList.remove(

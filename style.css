@@ -2082,11 +2082,67 @@ body.wind-game-paused #sakura {
     drop-shadow(0 0 28px rgba(80, 40, 140, 0.55));
 }
 
+.wind-ghost.hidden {
+  display: none !important;
+}
+
 .wind-ghost.ghost-defeated {
   opacity: 0;
   transform: translate(-50%, -50%);
   transition:
     opacity 180ms ease-out;
+}
+
+
+.wind-ghost-rush {
+  position: absolute;
+  left: 0;
+  top: 0;
+
+  width: 330px;
+  height: 330px;
+
+  z-index: 48;
+  pointer-events: none;
+
+  transform-origin: center center;
+  will-change: transform, opacity, filter;
+}
+
+.wind-ghost-rush.hidden {
+  display: none !important;
+}
+
+.wind-ghost-rush.rush-warning {
+  animation: rushGhostWarning 0.16s ease-in-out infinite alternate;
+}
+
+.wind-ghost-rush.ghost-defeated {
+  animation: rushGhostDefeated 0.18s ease-out forwards;
+}
+
+@keyframes rushGhostWarning {
+  from {
+    filter: brightness(1.1) drop-shadow(0 0 8px rgba(255, 120, 180, 0.7));
+    opacity: 0.72;
+  }
+
+  to {
+    filter: brightness(1.45) drop-shadow(0 0 22px rgba(255, 80, 140, 0.95));
+    opacity: 1;
+  }
+}
+
+@keyframes rushGhostDefeated {
+  from {
+    opacity: 1;
+    filter: brightness(1.4);
+  }
+
+  to {
+    opacity: 0;
+    filter: brightness(2.2);
+  }
 }
 
 /* =========================

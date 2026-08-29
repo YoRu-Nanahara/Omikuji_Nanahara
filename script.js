@@ -627,6 +627,7 @@ const WIND_GAME_IMAGE_ASSETS = [
   "images/wind-obstacle-top.png",
   "images/wind-obstacle-bottom.png",
   "images/wind-ghost.png",
+  "images/wind-ghost-rush.png",
 
   "images/wind-btn-attack.png",
   "images/wind-btn-fly.png",
@@ -982,7 +983,7 @@ function endWindAttack() {
 
 let windAttackActive = false;
 let windAttackTimer = null;
-let windGhostRespawnTimer = null;
+// 怪物重生改用 dt cooldown，不再使用 setTimeout timer
 let windSlashAnimToggle = false;
 let windAttackQueued = false;
 
@@ -1098,6 +1099,46 @@ let windPlayerY = 0;
 let windPlayerVY = 0;
 let windLastTime = 0;
 let windAnimFrame = null;
+
+// 遊戲經過時間，用來控制難度成長
+let windElapsedTime = 0;
+
+/*
+  難度等級：
+  - 時間越久越難
+  - 分數越高也會稍微推進難度
+  - 最高限制在 7，避免後期失控
+*/
+function getWindDifficultyLevel() {
+  const timeLevel = Math.floor(windElapsedTime / 18);
+  const scoreLevel = Math.floor(windScore / 35);
+
+  return Math.min(7, timeLevel + scoreLevel);
+}
+
+/*
+  主捲動速度：
+  開局：620
+  後期最高：約970
+*/
+function getWindScrollSpeed() {
+  const level = getWindDifficultyLevel();
+
+  return 620 + level * 50;
+}
+
+/*
+  怪物速度：
+  跟著難度上升，但保留隨機感
+*/
+function getWindDifficultyGhostSpeed() {
+  const level = getWindDifficultyLevel();
+
+  const min = WIND_GHOST_SPEED_MIN + level * 30;
+  const max = WIND_GHOST_SPEED_MAX + level * 38;
+
+  return min + Math.random() * (max - min);
+}
 
 // 倒數時的原地漂浮效果，只影響視覺，不影響碰撞
 let windPlayerFloatY = 0;
@@ -1220,14 +1261,20 @@ windLastTime = now;
 // 避免切到背景或超大卡頓時瞬移，但不要卡得太死
 dt = Math.min(dt, 0.08);
 
-  updateWindPlayerPhysics(dt);
+windElapsedTime += dt;
+
+updateWindPlayerPhysics(dt);
   applyWindPlayerTilt();
 updateWindObstacle(dt);
 updateWindSakuraTrail();
 updateWindGoldRoute();
 updateWindBonus(dt);
 updateWindBonusGold();
+
+updateWindGhostIntroSpawn();
 updateWindGhostMovement(dt);
+updateWindGhostRespawn(dt);
+updateWindRushGhost(dt);
 
 applyWindPlayerPosition();
 
@@ -1235,7 +1282,10 @@ updateWindCollectiblesCollision();
 updateWindObstacleCollision();
 
 updateWindSlashGhostCollision();
+updateWindSlashRushGhostCollision();
+
 updateWindGhostCollision();
+updateWindRushGhostCollision();
 
 updateWindDebugHitboxes();
 
@@ -1300,56 +1350,58 @@ function windGameOver() {
   if (windAnimFrame) {
     cancelAnimationFrame(windAnimFrame);
     windAnimFrame = null;
-
-    if (windAttackButtonFeedbackTimer) {
-  clearTimeout(windAttackButtonFeedbackTimer);
-  windAttackButtonFeedbackTimer = null;
-}
-
-setWindButtonPressed(btnWindAttack, false);
   }
 
+  if (windAttackButtonFeedbackTimer) {
+    clearTimeout(windAttackButtonFeedbackTimer);
+    windAttackButtonFeedbackTimer = null;
+  }
+
+  setWindButtonPressed(btnWindAttack, false);
+
   windFlyPressed = false;
-
   windAttackActive = false;
-
   windAttackQueued = false;
 
-  windGhostNeedsRespawnAfterPause = false;
+  // 停止怪物等待重生狀態
+  windGhostWaitingRespawn = false;
+  windGhostRespawnCooldown = 0;
+  windGhostActive = false;
 
-if (windAttackTimer) {
-  clearTimeout(windAttackTimer);
-  windAttackTimer = null;
-}
+  if (windAttackTimer) {
+    clearTimeout(windAttackTimer);
+    windAttackTimer = null;
+  }
 
-if (windGhostRespawnTimer) {
-  clearTimeout(windGhostRespawnTimer);
-  windGhostRespawnTimer = null;
-}
+  if (windSlash) {
+    windSlash.classList.remove(
+      "slash-active",
+      "slash-active-a",
+      "slash-active-b"
+    );
+    windSlash.classList.add("hidden");
+  }
 
-if (windSlash) {
-windSlash.classList.remove(
-  "slash-active",
-  "slash-active-a",
-  "slash-active-b"
-);
-windSlash.classList.add("hidden");
-}
+  if (windGhost) {
+    windGhost.classList.add("hidden");
+    windGhost.classList.remove("ghost-defeated");
+    setWindElementPosition(windGhost, WIND_GHOST_START_X, 960);
+  }
+
+  resetWindRushGhostSystem();
 
   if (windChinatsu) {
     windChinatsu.src = "images/wind-chinatsu-down.png";
   }
 
-clearWindCountdown();
-hideWindPauseOverlay();
-hideWindPauseButton();
+  clearWindCountdown();
+  hideWindPauseOverlay();
+  hideWindPauseButton();
 
-// Mission Complete 畫面中，櫻花也停止並變暗
-pauseSakuraForWindGame();
+  // Mission Complete 畫面中，櫻花停止並變暗
+  pauseSakuraForWindGame();
 
-showWindResultPanel();
-
- 
+  showWindResultPanel();
 }
 
 
@@ -1380,7 +1432,6 @@ function setWindGameState(nextState) {
 const WIND_PAUSE_ICON = "images/ui-btn-pause.png";
 const WIND_RESUME_ICON = "images/ui-btn-resume.png";
 
-let windGhostNeedsRespawnAfterPause = false;
 
 function updateWindPauseButtonIcon() {
   if (!btnWindGameMenu) return;
@@ -1446,13 +1497,6 @@ function pauseWindGame() {
   if (windAttackActive || windAttackTimer) {
     endWindAttack();
   }
-
-  // 如果怪物剛被擊倒、正在等重生，暫停期間先停掉重生 timer
-  if (windGhostRespawnTimer) {
-    clearTimeout(windGhostRespawnTimer);
-    windGhostRespawnTimer = null;
-    windGhostNeedsRespawnAfterPause = !windGhostActive;
-  }
 }
 
 function resumeWindGame() {
@@ -1473,16 +1517,6 @@ function resumeWindGame() {
   windLastTime = performance.now();
 
   startWindGameLoop();
-
-  // 如果暫停前怪物正在等待重生，恢復後再重新安排重生
-  if (windGhostNeedsRespawnAfterPause && !windGhostActive) {
-    windGhostNeedsRespawnAfterPause = false;
-
-    windGhostRespawnTimer = setTimeout(() => {
-      if (windGameState !== "playing") return;
-      resetWindGhost();
-    }, 500);
-  }
 }
 
 function toggleWindGamePause(e) {
@@ -1571,8 +1605,9 @@ function startWindPlaying() {
 
 windPlayerY = 0;
 windPlayerVY = 0;
-windLastTime = 0;
+windLastTime = performance.now();
 windPlayerFloatY = 0;
+windElapsedTime = 0;
 applyWindPlayerPosition();
 
   startWindGameLoop();
@@ -1715,7 +1750,7 @@ function applyWindObstaclePosition() {
 function updateWindObstacle(dt) {
   if (!windObstacleGroup) return;
 
-  windObstacleX -= WIND_OBSTACLE_SPEED * dt;
+ windObstacleX -= getWindScrollSpeed() * dt;
 
   if (windObstacleX < WIND_OBSTACLE_END_X) {
     windObstacleX = WIND_OBSTACLE_RESET_X;
@@ -1979,7 +2014,7 @@ function updateWindSakuraBonus() {
 }
 
 function updateWindBonus(dt) {
-  windBonusX -= WIND_BONUS_SPEED * dt;
+  windBonusX -= getWindScrollSpeed() * dt;
 
   updateWindSakuraBonus();
 }
@@ -2158,17 +2193,42 @@ function updateWindBonusGold() {
 
 
 function getRandomWindGhostSpeed() {
-  return (
-    WIND_GHOST_SPEED_MIN +
-    Math.random() * (WIND_GHOST_SPEED_MAX - WIND_GHOST_SPEED_MIN)
-  );
+  return getWindDifficultyGhostSpeed();
 }
 
 const windGhost = document.getElementById("windGhost");
 
 let windGhostX = 1600;
 let windGhostY = 960;
+let windGhostBaseY = 960;
 let windGhostActive = false;
+
+// 怪物漂浮用
+let windGhostFloatTime = 0;
+let windGhostFloatPhase = 0;
+
+const WIND_GHOST_FLOAT_AMPLITUDE = 34; // 上下漂浮幅度
+const WIND_GHOST_FLOAT_SPEED = 5.2;    // 漂浮速度
+const WIND_GHOST_FLOAT_DRIFT = 12;     // 額外細微擺動
+
+// 怪物幾秒後正式加入戰場
+const WIND_GHOST_INTRO_DELAY = 30;
+
+// 第一隻怪物是否已經出現過
+let windGhostIntroSpawned = false;
+
+// 怪物重生冷卻，單位：秒
+let windGhostRespawnCooldown = 0;
+
+// 是否正在等待重生
+let windGhostWaitingRespawn = false;
+
+// 怪物被打倒 / 離場後的重生間隔
+const WIND_GHOST_RESPAWN_MIN = 2.4;
+const WIND_GHOST_RESPAWN_MAX = 4.2;
+
+// 怪物與障礙物抵達玩家附近的時間差，太近就延後怪物出生
+const WIND_GHOST_OBSTACLE_SAFE_TIME_GAP = 0.18;
 
 const WIND_GHOST_START_X = 1500;
 const WIND_GHOST_END_X = -180;
@@ -2190,16 +2250,133 @@ const WIND_GHOST_Y_LIST = [
 ];
 
 
+
+function getWindGhostRespawnDelay() {
+  return (
+    WIND_GHOST_RESPAWN_MIN +
+    Math.random() * (WIND_GHOST_RESPAWN_MAX - WIND_GHOST_RESPAWN_MIN)
+  );
+}
+
+function prepareWindGhostIntro() {
+  windGhostIntroSpawned = false;
+  windGhostWaitingRespawn = false;
+  windGhostRespawnCooldown = 0;
+  windGhostActive = false;
+
+  windGhostX = WIND_GHOST_START_X;
+windGhostBaseY = 960;
+windGhostY = windGhostBaseY;
+windGhostFloatTime = 0;
+windGhostFloatPhase = 0;
+
+  if (windGhost) {
+    windGhost.classList.add("hidden");
+    windGhost.classList.remove("ghost-defeated");
+
+    // 保險：出生前先放到右側畫面外，避免左上角短暫露出
+    setWindElementPosition(windGhost, windGhostX, windGhostY);
+  }
+}
+
+function startWindGhostRespawnCooldown(delay = getWindGhostRespawnDelay()) {
+  windGhostActive = false;
+  windGhostWaitingRespawn = true;
+  windGhostRespawnCooldown = delay;
+
+  if (windGhost) {
+    windGhost.classList.add("hidden");
+    windGhost.classList.remove("ghost-defeated");
+
+    // 保險：等待重生時放到畫面外
+   windGhostBaseY = 960;
+windGhostY = windGhostBaseY;
+windGhostFloatTime = 0;
+
+setWindElementPosition(windGhost, WIND_GHOST_START_X, windGhostY);
+  }
+}
+
+function isWindGhostSpawnTimingSafe() {
+  /*
+    這版比較寬鬆：
+    - 怪物可以靠近障礙物
+    - 只避免怪物和障礙物「幾乎同時」抵達玩家附近
+    - 這樣攻擊鍵會變重要，但不會變成完全無解
+  */
+
+  const playerDangerX = WIND_PLAYER_BASE_X + WIND_PLAYER_W * 0.65;
+
+  const obstacleCenterX = windObstacleX + 130;
+  const scrollSpeed =
+    typeof getWindScrollSpeed === "function"
+      ? getWindScrollSpeed()
+      : WIND_OBSTACLE_SPEED;
+
+  const ghostSpeedEstimate =
+    windGhostSpeed || ((WIND_GHOST_SPEED_MIN + WIND_GHOST_SPEED_MAX) / 2);
+
+  const ghostTimeToPlayer =
+    (WIND_GHOST_START_X - playerDangerX) / ghostSpeedEstimate;
+
+  const obstacleTimeToPlayer =
+    (obstacleCenterX - playerDangerX) / scrollSpeed;
+
+  /*
+    如果障礙物已經離玩家很遠、或已經通過玩家，
+    就不用限制怪物生成。
+  */
+  if (obstacleTimeToPlayer <= 0) {
+    return true;
+  }
+
+  /*
+    只禁止「幾乎同時抵達」。
+    0.38 秒以內才視為太危險。
+  */
+  const timeGap = Math.abs(obstacleTimeToPlayer - ghostTimeToPlayer);
+
+  if (timeGap < WIND_GHOST_OBSTACLE_SAFE_TIME_GAP) {
+    return false;
+  }
+
+  return true;
+}
+
+
+function updateWindGhostFloating(dt) {
+  if (!windGhostActive) return;
+
+  windGhostFloatTime += dt;
+
+  const mainFloat =
+    Math.sin(windGhostFloatTime * WIND_GHOST_FLOAT_SPEED + windGhostFloatPhase) *
+    WIND_GHOST_FLOAT_AMPLITUDE;
+
+  const smallDrift =
+    Math.sin(windGhostFloatTime * WIND_GHOST_FLOAT_SPEED * 1.9 + windGhostFloatPhase) *
+    WIND_GHOST_FLOAT_DRIFT;
+
+  windGhostY = windGhostBaseY + mainFloat + smallDrift;
+}
+
+
 function resetWindGhost() {
   windGhostX = WIND_GHOST_START_X;
   windGhostActive = true;
+  windGhostWaitingRespawn = false;
+  windGhostRespawnCooldown = 0;
 
   const index = Math.floor(Math.random() * WIND_GHOST_Y_LIST.length);
-  windGhostY = WIND_GHOST_Y_LIST[index];
+windGhostBaseY = WIND_GHOST_Y_LIST[index];
+windGhostY = windGhostBaseY;
 
-  windGhostSpeed = getRandomWindGhostSpeed();
+windGhostFloatTime = 0;
+windGhostFloatPhase = Math.random() * Math.PI * 2;
 
-  updateWindGhost();
+windGhostSpeed = getRandomWindGhostSpeed();
+
+updateWindGhost();
 }
 
 function updateWindGhost() {
@@ -2207,15 +2384,56 @@ function updateWindGhost() {
 
   if (!windGhostActive) {
     windGhost.classList.add("hidden");
+    windGhost.classList.remove("ghost-defeated");
+
+    // 不活動時永遠停在右側外面
+    setWindElementPosition(windGhost, WIND_GHOST_START_X, 960);
     return;
   }
 
-  windGhost.classList.remove("hidden");
-  windGhost.classList.remove("ghost-defeated");
-
-  // 改用 transform 移動，不再每幀寫 left/top
   setWindElementPosition(windGhost, windGhostX, windGhostY);
+
+const ghostTilt =
+  Math.sin(windGhostFloatTime * 4.2 + windGhostFloatPhase) * 4;
+
+windGhost.style.transform += ` rotate(${ghostTilt}deg)`;
+
+windGhost.classList.remove("hidden");
+windGhost.classList.remove("ghost-defeated");
 }
+
+function updateWindGhostIntroSpawn() {
+  if (windGameState !== "playing") return;
+  if (windGhostIntroSpawned) return;
+
+  if (windElapsedTime < WIND_GHOST_INTRO_DELAY) return;
+
+  // 時機不安全就先等，不要硬生怪
+  if (!isWindGhostSpawnTimingSafe()) return;
+
+  windGhostIntroSpawned = true;
+  resetWindGhost();
+}
+
+function updateWindGhostRespawn(dt) {
+  if (windGameState !== "playing") return;
+  if (!windGhostIntroSpawned) return;
+  if (windGhostActive) return;
+  if (!windGhostWaitingRespawn) return;
+
+  windGhostRespawnCooldown -= dt;
+
+  if (windGhostRespawnCooldown > 0) return;
+
+  // 時機不安全就繼續等，不會立刻出生
+  if (!isWindGhostSpawnTimingSafe()) return;
+
+  windGhostWaitingRespawn = false;
+  windGhostRespawnCooldown = 0;
+
+  resetWindGhost();
+}
+
 
 
 function updateWindGhostMovement(dt) {
@@ -2223,8 +2441,11 @@ function updateWindGhostMovement(dt) {
 
   windGhostX -= windGhostSpeed * dt;
 
+  // 怪物一邊衝刺，一邊上下漂浮
+  updateWindGhostFloating(dt);
+
   if (windGhostX < WIND_GHOST_END_X) {
-    resetWindGhost();
+    startWindGhostRespawnCooldown();
     return;
   }
 
@@ -2241,25 +2462,192 @@ function defeatWindGhost() {
     windGhost.classList.add("ghost-defeated");
 
     setTimeout(() => {
+      if (windGhostActive) return;
       windGhost.classList.add("hidden");
 
-      // 注意：這裡不要 remove ghost-defeated
-      // 等下一次 resetWindGhost() → updateWindGhost() 時再移除
+      // 等下一次 resetWindGhost() → updateWindGhost() 時再移除 ghost-defeated
     }, 160);
   }
 
   addWindScore(WIND_GHOST_DEFEAT_SCORE);
 
-  if (windGhostRespawnTimer) {
-    clearTimeout(windGhostRespawnTimer);
-    windGhostRespawnTimer = null;
+  // 新版：不使用 setTimeout，改用 dt cooldown
+  startWindGhostRespawnCooldown();
+}
+
+
+/* =========================
+   Wind Game Rush Ghost
+========================= */
+
+const windGhostRush = document.getElementById("windGhostRush");
+
+let windRushGhostX = 1700;
+let windRushGhostY = 960;
+let windRushGhostActive = false;
+let windRushGhostIntroStarted = false;
+let windRushGhostState = "idle";
+// idle / waiting / warning / charging
+
+let windRushGhostCooldown = 0;
+let windRushGhostWarningTime = 0;
+
+const WIND_RUSH_GHOST_INTRO_DELAY = 40;
+
+const WIND_RUSH_GHOST_START_X = 1450;
+const WIND_RUSH_GHOST_END_X = -240;
+
+const WIND_RUSH_GHOST_W = 330;
+const WIND_RUSH_GHOST_H = 330;
+
+const WIND_RUSH_GHOST_SPEED = 1450;
+
+// 出現前警告時間，給玩家反應
+const WIND_RUSH_GHOST_WARNING_DURATION = 0.55;
+
+// 每次突擊後多久再出現
+const WIND_RUSH_GHOST_COOLDOWN_MIN = 7.5;
+const WIND_RUSH_GHOST_COOLDOWN_MAX = 11.5;
+
+// 鎖定玩家高度時的上下界，避免怪物出現在太極端的位置
+const WIND_RUSH_GHOST_MIN_Y = 260;
+const WIND_RUSH_GHOST_MAX_Y = 1660;
+
+
+function clampWindRushGhostY(y) {
+  return Math.max(
+    WIND_RUSH_GHOST_MIN_Y,
+    Math.min(WIND_RUSH_GHOST_MAX_Y, y)
+  );
+}
+
+function getWindRushGhostCooldown() {
+  return (
+    WIND_RUSH_GHOST_COOLDOWN_MIN +
+    Math.random() *
+      (WIND_RUSH_GHOST_COOLDOWN_MAX - WIND_RUSH_GHOST_COOLDOWN_MIN)
+  );
+}
+
+function getWindPlayerCenterY() {
+  return WIND_PLAYER_BASE_Y + windPlayerY + WIND_PLAYER_H / 2;
+}
+
+function hideWindRushGhost() {
+  windRushGhostActive = false;
+  windRushGhostState = "idle";
+
+  if (!windGhostRush) return;
+
+  windGhostRush.classList.add("hidden");
+  windGhostRush.classList.remove("rush-warning", "ghost-defeated");
+
+  setWindElementPosition(windGhostRush, WIND_RUSH_GHOST_START_X, 960);
+}
+
+function resetWindRushGhostSystem() {
+  windRushGhostX = WIND_RUSH_GHOST_START_X;
+  windRushGhostY = 960;
+
+  windRushGhostActive = false;
+  windRushGhostIntroStarted = false;
+  windRushGhostState = "idle";
+
+  windRushGhostCooldown = 0;
+  windRushGhostWarningTime = 0;
+
+  hideWindRushGhost();
+}
+
+
+function startWindRushGhostWarning() {
+  if (!windGhostRush) return;
+
+  windRushGhostActive = true;
+  windRushGhostState = "warning";
+
+  windRushGhostX = WIND_RUSH_GHOST_START_X;
+
+  // 鎖定玩家當下位置
+  windRushGhostY = clampWindRushGhostY(getWindPlayerCenterY());
+
+  windRushGhostWarningTime = WIND_RUSH_GHOST_WARNING_DURATION;
+
+  setWindElementPosition(windGhostRush, windRushGhostX, windRushGhostY);
+
+  windGhostRush.classList.remove("hidden", "ghost-defeated");
+  windGhostRush.classList.add("rush-warning");
+}
+
+function startWindRushGhostCharge() {
+  if (!windGhostRush) return;
+
+  windRushGhostState = "charging";
+
+  windGhostRush.classList.remove("rush-warning");
+  windGhostRush.classList.remove("hidden");
+
+  setWindElementPosition(windGhostRush, windRushGhostX, windRushGhostY);
+}
+
+function startWindRushGhostCooldown() {
+  windRushGhostActive = false;
+  windRushGhostState = "waiting";
+  windRushGhostCooldown = getWindRushGhostCooldown();
+
+  if (windGhostRush) {
+    windGhostRush.classList.add("hidden");
+    windGhostRush.classList.remove("rush-warning", "ghost-defeated");
+    setWindElementPosition(windGhostRush, WIND_RUSH_GHOST_START_X, 960);
+  }
+}
+
+function updateWindRushGhost(dt) {
+  if (windGameState !== "playing") return;
+
+  // 60 秒後才啟動突擊怪物系統
+  if (!windRushGhostIntroStarted) {
+    if (windElapsedTime < WIND_RUSH_GHOST_INTRO_DELAY) return;
+
+    windRushGhostIntroStarted = true;
+    startWindRushGhostWarning();
+    return;
   }
 
-  windGhostRespawnTimer = setTimeout(() => {
-    if (windGameState !== "playing") return;
+  if (windRushGhostState === "waiting") {
+    windRushGhostCooldown -= dt;
 
-    resetWindGhost();
-  }, 700);
+    if (windRushGhostCooldown <= 0) {
+      startWindRushGhostWarning();
+    }
+
+    return;
+  }
+
+  if (windRushGhostState === "warning") {
+    windRushGhostWarningTime -= dt;
+
+    // 警告期間持續貼著玩家當下位置，讓牠看起來正在鎖定
+    windRushGhostY = clampWindRushGhostY(getWindPlayerCenterY());
+    setWindElementPosition(windGhostRush, windRushGhostX, windRushGhostY);
+
+    if (windRushGhostWarningTime <= 0) {
+      startWindRushGhostCharge();
+    }
+
+    return;
+  }
+
+  if (windRushGhostState === "charging") {
+    windRushGhostX -= WIND_RUSH_GHOST_SPEED * dt;
+
+    if (windRushGhostX < WIND_RUSH_GHOST_END_X) {
+      startWindRushGhostCooldown();
+      return;
+    }
+
+    setWindElementPosition(windGhostRush, windRushGhostX, windRushGhostY);
+  }
 }
 
 
@@ -2395,6 +2783,21 @@ function getWindGhostHitboxRect() {
       h: WIND_GHOST_H,
     },
     WIND_HITBOX_INSET.ghost
+  );
+}
+
+function getWindRushGhostHitboxRect() {
+  if (!windRushGhostActive) return null;
+  if (!windGhostRush || windGhostRush.classList.contains("hidden")) return null;
+
+  return insetWindRect(
+    {
+      x: windRushGhostX - WIND_RUSH_GHOST_W / 2,
+      y: windRushGhostY - WIND_RUSH_GHOST_H / 2,
+      w: WIND_RUSH_GHOST_W,
+      h: WIND_RUSH_GHOST_H,
+    },
+    WIND_HITBOX_INSET.rushGhost
   );
 }
 
@@ -2577,6 +2980,52 @@ function updateWindSlashGhostCollision() {
 }
 
 
+function defeatWindRushGhost() {
+  if (!windRushGhostActive) return;
+
+  windRushGhostActive = false;
+
+  if (windGhostRush) {
+    windGhostRush.classList.remove("rush-warning");
+    windGhostRush.classList.add("ghost-defeated");
+
+    setTimeout(() => {
+      if (windRushGhostActive) return;
+
+      windGhostRush.classList.add("hidden");
+      windGhostRush.classList.remove("ghost-defeated");
+    }, 180);
+  }
+
+  addWindScore(WIND_GHOST_DEFEAT_SCORE);
+
+  startWindRushGhostCooldown();
+}
+
+function updateWindSlashRushGhostCollision() {
+  if (windGameState !== "playing") return;
+  if (!windAttackActive) return;
+  if (!windRushGhostActive) return;
+  if (windRushGhostState !== "warning" && windRushGhostState !== "charging") return;
+
+  const playerRect = getWindPlayerHitboxRect();
+  if (!playerRect) return;
+
+  // 突擊怪物離玩家還太遠時先不算，節省效能
+  if (windRushGhostX > playerRect.x + playerRect.w + 640) return;
+  if (windRushGhostX < playerRect.x - 260) return;
+
+  const slashRect = getWindSlashHitboxRect();
+  const rushRect = getWindRushGhostHitboxRect();
+
+  if (!slashRect || !rushRect) return;
+
+  if (isWindRectOverlap(slashRect, rushRect)) {
+    defeatWindRushGhost();
+  }
+}
+
+
 function updateWindGhostCollision() {
   if (windGameState !== "playing") return;
   if (!windGhostActive) return;
@@ -2593,6 +3042,27 @@ function updateWindGhostCollision() {
   if (!ghostRect) return;
 
   if (isWindRectOverlap(playerRect, ghostRect)) {
+    windGameOver();
+  }
+}
+
+
+function updateWindRushGhostCollision() {
+  if (windGameState !== "playing") return;
+  if (!windRushGhostActive) return;
+  if (windRushGhostState !== "charging") return;
+  if (!windGhostRush || windGhostRush.classList.contains("hidden")) return;
+
+  const playerRect = getWindPlayerHitboxRect();
+  if (!playerRect) return;
+
+  if (windRushGhostX > playerRect.x + playerRect.w + 260) return;
+  if (windRushGhostX + WIND_RUSH_GHOST_W / 2 < playerRect.x - 260) return;
+
+  const rushRect = getWindRushGhostHitboxRect();
+  if (!rushRect) return;
+
+  if (isWindRectOverlap(playerRect, rushRect)) {
     windGameOver();
   }
 }
@@ -2722,6 +3192,13 @@ ghost: {
   right: 75,
   top: 60,
   bottom: 60,
+},
+
+rushGhost: {
+  left: 58,
+  right: 78,
+  top: 62,
+  bottom: 62,
 },
 
 slash: {
@@ -2959,23 +3436,21 @@ resumeSakuraForWindGame();
 
   windAttackQueued = false;
 
-  windGhostNeedsRespawnAfterPause = false;
-
-if (windAttackTimer) {
+ if (windAttackTimer) {
   clearTimeout(windAttackTimer);
   windAttackTimer = null;
 }
 
-if (windGhostRespawnTimer) {
-  clearTimeout(windGhostRespawnTimer);
-  windGhostRespawnTimer = null;
-}
+windGhostWaitingRespawn = false;
+windGhostRespawnCooldown = 0;
+windGhostActive = false;
 
   // 重置玩家物理
   windPlayerY = 0;
-  windPlayerVY = 0;
-  windLastTime = 0;
-  applyWindPlayerPosition();
+windPlayerVY = 0;
+windLastTime = 0;
+windElapsedTime = 0;
+applyWindPlayerPosition();
   resetWindPlayerTilt();
 
   // 重置角色差分
@@ -3003,7 +3478,9 @@ windSlash.classList.add("hidden");
   resetWindObstacle();
 
 
-  resetWindGhost();
+  prepareWindGhostIntro();
+
+  resetWindRushGhostSystem();
 
   // 清除 debug hitbox
   clearWindDebugHitboxes();

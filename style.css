@@ -1301,6 +1301,10 @@ button {
    Wind Game Screen
 ========================= */
 
+body.wind-game-active #sakura {
+  display: none !important;
+}
+
 #windGameScreen {
   position: absolute;
   inset: 0;

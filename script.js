@@ -511,6 +511,39 @@ function playWindSlashSound() {
   }
 }
 
+
+let windGameSavedNightMode = false;
+
+function enterWindGamePerformanceMode() {
+  // 記住進小遊戲前是不是夜晚模式
+  windGameSavedNightMode = document.body.classList.contains("night-mode");
+
+  // 小遊戲期間暫時移除夜晚模式，避免夜間圖層 / 濾鏡 / 轉場影響效能
+  document.body.classList.remove("night-mode");
+
+  // 加一個小遊戲專用 class，方便 CSS 關掉不必要效果
+  document.body.classList.add("wind-game-active");
+
+
+}
+
+function exitWindGamePerformanceMode() {
+  document.body.classList.remove("wind-game-active");
+
+  // 回主選單後，恢復原本夜晚模式
+  if (windGameSavedNightMode) {
+    document.body.classList.add("night-mode");
+  } else {
+    document.body.classList.remove("night-mode");
+  }
+
+  if (typeof resumeSakuraPetals === "function") {
+    resumeSakuraPetals();
+  }
+}
+
+
+
 /* =========================
    Wind Game Preload
 ========================= */
@@ -2465,11 +2498,12 @@ btnOmikuji.addEventListener("click", () => {
 
 if (btnMission) {
   btnMission.addEventListener("click", () => {
+    enterWindGamePerformanceMode();
+
     prepareWindGameBackground();
     resetWindGameSession();
 
     enterWindGameAudioMode();
-
     if (typeof goToScreen === "function" && menuScreen && windGameScreen) {
       goToScreen(menuScreen, windGameScreen, 600, async () => {
         await preloadWindGameAssets();
@@ -2533,6 +2567,10 @@ if (btnWindGameMenu) {
     resetWindGameSession();
     switchToShrineBgm();
     backToMenuFrom(windGameScreen);
+
+    setTimeout(() => {
+      exitWindGamePerformanceMode();
+    }, 800);
   });
 }
 

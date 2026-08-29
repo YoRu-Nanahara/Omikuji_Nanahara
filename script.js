@@ -349,8 +349,8 @@ function goToScreen(fromScreen, toScreen, holdTime = 600, onClosedReady = null) 
   }
 }
 const WIND_GAME_BG = {
-  day: "images/wind-bg-night.jpg",
-  night: "images/wind-bg-night.jpg"
+  day: "images/wind-bg-day.jpg",
+  night: "images/wind-bg-day.jpg"
 };
 
 function getWindGameModeByTime() {

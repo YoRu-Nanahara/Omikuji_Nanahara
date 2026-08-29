@@ -349,7 +349,7 @@ function goToScreen(fromScreen, toScreen, holdTime = 600, onClosedReady = null) 
   }
 }
 const WIND_GAME_BG = {
-  day: "images/wind-bg-day.jpg",
+  day: "images/wind-bg-night.jpg",
   night: "images/wind-bg-night.jpg"
 };
 
@@ -2215,21 +2215,21 @@ function insetWindRect(rect, inset) {
 const WIND_HITBOX_INSET = {
   player: {
     left: 150,
-    right: 140,
+    right: 160,
     top: 70,
     bottom: 50,
   },
 
   obstacleTop: {
-    left: 24,
-    right: 24,
+    left: 5,
+    right: 5,
     top: 0,
     bottom: 300,
   },
 
   obstacleBottom: {
-    left: 24,
-    right: 24,
+    left: 5,
+    right: 5,
     top: 300,
     bottom: 0,
   },
@@ -2258,8 +2258,8 @@ ghost: {
 slash: {
   left: 120,
   right: 120,
-  top: 60,
-  bottom: 60,
+  top: 40,
+  bottom: 5,
 },
 
 };

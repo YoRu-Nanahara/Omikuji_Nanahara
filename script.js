@@ -350,7 +350,7 @@ function goToScreen(fromScreen, toScreen, holdTime = 600, onClosedReady = null) 
 }
 const WIND_GAME_BG = {
   day: "images/wind-bg-day.jpg",
-  night: "images/wind-bg-day.jpg"
+  night: "images/wind-bg-night.jpg"
 };
 
 function getWindGameModeByTime() {
@@ -530,11 +530,15 @@ function enterWindGamePerformanceMode() {
 function exitWindGamePerformanceMode() {
   document.body.classList.remove("wind-game-active");
 
-  // 回主選單後，恢復原本夜晚模式
-  if (windGameSavedNightMode) {
-    document.body.classList.add("night-mode");
+  // 回主選單後，重新依照當下時間判斷日夜
+  if (typeof updateDayNightMode === "function") {
+    updateDayNightMode();
   } else {
-    document.body.classList.remove("night-mode");
+    if (windGameSavedNightMode) {
+      document.body.classList.add("night-mode");
+    } else {
+      document.body.classList.remove("night-mode");
+    }
   }
 
   if (typeof resumeSakuraPetals === "function") {

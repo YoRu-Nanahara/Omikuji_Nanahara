@@ -2502,19 +2502,21 @@ btnOmikuji.addEventListener("click", () => {
 
 if (btnMission) {
   btnMission.addEventListener("click", () => {
-    enterWindGamePerformanceMode();
-
     prepareWindGameBackground();
     resetWindGameSession();
 
     enterWindGameAudioMode();
+
     if (typeof goToScreen === "function" && menuScreen && windGameScreen) {
       goToScreen(menuScreen, windGameScreen, 600, async () => {
+        // 拉門已經完全闔上後，才進入小遊戲效能模式
+        // 這樣主畫面的夜晚版不會在玩家眼前突然變白天
+        enterWindGamePerformanceMode();
+
         await preloadWindGameAssets();
 
         warmupWindGameDom();
 
-        // 等拉門準備打開後再開始倒數
         setTimeout(() => {
           startWindCountdown();
         }, 850);
@@ -2570,11 +2572,17 @@ if (btnWindGameMenu) {
 
     resetWindGameSession();
     switchToShrineBgm();
-    backToMenuFrom(windGameScreen);
 
-    setTimeout(() => {
+    if (typeof goToScreen === "function" && windGameScreen && menuScreen) {
+      goToScreen(windGameScreen, menuScreen, 600, async () => {
+        // 拉門關上後才恢復主畫面日夜模式
+        exitWindGamePerformanceMode();
+      });
+    } else {
+      windGameScreen.classList.add("hidden");
+      menuScreen.classList.remove("hidden");
       exitWindGamePerformanceMode();
-    }, 800);
+    }
   });
 }
 

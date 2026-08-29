@@ -235,12 +235,42 @@
   </div>
 
   <div id="windCountdown" class="hidden" aria-live="polite"></div>
-  <div id="windScore">0</div>
+<div id="windScore">0</div>
 
-  <div id="windHitboxLayer"></div>
+<div id="windPauseOverlay" class="wind-pause-overlay hidden" aria-live="polite">
+  <div class="wind-pause-title">Pause</div>
+</div>
 
-  <!-- 新增：小遊戲操作按鈕 -->
-  <div id="windControls">
+<div id="windResultPanel" class="wind-result-panel hidden" aria-live="polite">
+  <div class="wind-result-card">
+  
+    <div class="wind-result-title">Mission Complete</div>
+
+    <div class="wind-result-score-row">
+      <span>Score</span>
+      <strong id="windResultScore">0</strong>
+    </div>
+
+    <div class="wind-result-score-row wind-result-best">
+      <span>Best</span>
+      <strong id="windResultBest">0</strong>
+    </div>
+
+    <div class="wind-result-actions wind-result-icon-actions">
+  <button id="btnWindRetry" class="focus-btn wind-result-icon-btn" type="button" aria-label="Retry">
+    <img src="images/ui-btn-back.png" alt="Retry">
+  </button>
+
+  <button id="btnWindResultMenu" class="focus-btn wind-result-icon-btn" type="button" aria-label="Back to Menu">
+    <img src="images/ui-btn-menu.png" alt="Menu">
+  </button>
+</div>
+  </div>
+</div>
+
+<div id="windHitboxLayer"></div>
+
+<div id="windControls">
     <button id="btnWindAttack" class="wind-control-btn wind-attack-btn" type="button" aria-label="Attack">
       <img src="images/wind-btn-attack.png" alt="Attack">
     </button>
@@ -249,9 +279,9 @@
       <img src="images/wind-btn-fly.png" alt="Fly">
     </button>
   </div>
-  <button id="btnWindGameMenu" class="ui-btn-menu-topright" type="button" aria-label="Back to Menu">
-    <img src="images/ui-btn-menu.png" alt="Back to Menu">
-  </button>
+  <button id="btnWindGameMenu" class="ui-btn-menu-topright" type="button" aria-label="Pause">
+  <img src="images/ui-btn-pause.png" alt="Pause">
+</button>
 </div>
   </div>   <!-- /gameRoot -->
 </div>     <!-- /viewport -->

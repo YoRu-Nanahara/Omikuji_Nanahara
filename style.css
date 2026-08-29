@@ -1326,6 +1326,67 @@ button {
 }
 
 /* =========================
+   Wind Game Pause Overlay
+========================= */
+
+.wind-pause-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 55;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background:
+    radial-gradient(
+      circle at 50% 42%,
+      rgba(255, 235, 250, 0.12),
+      rgba(0, 0, 0, 0.46) 62%,
+      rgba(0, 0, 0, 0.58) 100%
+    );
+
+  pointer-events: none;
+  opacity: 1;
+
+  animation: windPauseFadeIn 220ms ease-out both;
+}
+
+#windGameScreen #btnWindGameMenu {
+  z-index: 70;
+}
+
+.wind-pause-overlay.hidden {
+  display: none;
+}
+
+.wind-pause-title {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 118px;
+  font-weight: 800;
+  letter-spacing: 4px;
+
+  color: rgba(255, 245, 252, 0.96);
+
+  text-shadow:
+    0 0 12px rgba(255, 255, 255, 0.9),
+    0 0 32px rgba(255, 175, 220, 0.78),
+    0 0 68px rgba(120, 80, 180, 0.62);
+
+  transform: translateY(-80px);
+}
+
+@keyframes windPauseFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* =========================
    Wind Game Player
 ========================= */
 
@@ -1744,6 +1805,197 @@ body.night-mode #windGameScreen .wind-bonus-sakura {
     0 0 42px rgba(255, 220, 120, 0.55);
 }
 
+/* =========================
+   Wind Game Result Panel
+========================= */
+
+.wind-result-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 75;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 80px;
+  box-sizing: border-box;
+
+  background:
+    radial-gradient(circle at 50% 36%,
+      rgba(255, 230, 245, 0.22),
+      rgba(20, 12, 36, 0.72) 58%,
+      rgba(0, 0, 0, 0.78) 100%);
+
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.wind-result-panel.hidden {
+  display: none;
+}
+
+.wind-result-card {
+  width: 760px;
+  min-height: 520px;
+
+  padding: 58px 62px 54px;
+  box-sizing: border-box;
+
+  border-radius: 42px;
+  border: 2px solid rgba(255, 238, 210, 0.62);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 252, 245, 0.76),
+      rgba(255, 239, 229, 0.66)
+    );
+
+  box-shadow:
+    0 0 28px rgba(255, 220, 180, 0.52),
+    0 0 80px rgba(255, 160, 210, 0.34),
+    0 22px 70px rgba(0, 0, 0, 0.32);
+
+  text-align: center;
+
+  animation: windResultCardIn 520ms ease-out both;
+}
+
+.wind-result-kicker {
+  margin-bottom: 18px;
+
+  font-family: 'Open Sans', sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 2px;
+
+  color: rgba(120, 72, 88, 0.78);
+}
+
+.wind-result-title {
+  margin-top: -26px;
+  margin-bottom: 54px;
+
+  font-family: 'Open Sans', sans-serif;
+  font-size: 96px;
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: 2px;
+
+  color: #fffeff;
+
+  text-shadow:
+    0 0 10px rgba(255, 255, 255, 0.95),
+    0 0 22px rgba(207, 58, 83, 0.75);
+}
+
+.wind-result-score-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+
+  width: 100%;
+  margin: 18px auto;
+
+  font-family: 'Open Sans', sans-serif;
+  color: #5b4050;
+}
+
+.wind-result-score-row span {
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.wind-result-score-row strong {
+  font-size: 58px;
+  font-weight: 800;
+  color: #9e4c67;
+}
+
+.wind-result-best {
+  opacity: 0.82;
+}
+
+.wind-result-actions {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+
+  margin-top: 50px;
+}
+
+.wind-result-btn {
+  min-width: 210px;
+  height: 82px;
+
+  border: none;
+  border-radius: 999px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 235, 245, 1),
+      rgba(255, 196, 218, 1)
+    );
+
+  box-shadow:
+    0 8px 18px rgba(150, 70, 100, 0.24),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.72);
+
+  font-family: 'Open Sans', sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  color: #8c415d;
+
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.wind-result-btn:active {
+  transform: scale(0.94);
+  filter: brightness(0.94);
+}
+
+@keyframes windResultCardIn {
+  0% {
+    opacity: 0;
+    transform: translateY(38px) scale(0.92);
+  }
+
+  65% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1.025);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.wind-result-icon-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 120px;
+
+  margin-top: 52px;
+}
+
+.wind-result-icon-btn {
+  width: 150px;
+  height: 150px;
+}
+
+.wind-result-icon-btn img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  pointer-events: none;
+}
 
 
 .wind-ghost {

@@ -314,6 +314,7 @@ const omikujiScreen = document.getElementById("omikujiScreen");
 const windGameScreen = document.getElementById("windGameScreen");
 const windGameBg = document.getElementById("windGameBg");
 const btnWindGameMenu = document.getElementById("btnWindGameMenu");
+const windPauseOverlay = document.getElementById("windPauseOverlay");
 
 function goToScreen(fromScreen, toScreen, holdTime = 600, onClosedReady = null) {
   leftDoor.classList.remove("hide", "closed");
@@ -1278,6 +1279,8 @@ setWindButtonPressed(btnWindAttack, false);
 
   windAttackQueued = false;
 
+  windGhostNeedsRespawnAfterPause = false;
+
 if (windAttackTimer) {
   clearTimeout(windAttackTimer);
   windAttackTimer = null;
@@ -1301,16 +1304,14 @@ windSlash.classList.add("hidden");
     windChinatsu.src = "images/wind-chinatsu-down.png";
   }
 
-  if (windCountdown) {
-    windCountdown.textContent = "Game Over";
-    windCountdown.classList.remove("hidden");
-    windCountdown.classList.remove("countdown-pop");
-    void windCountdown.offsetWidth;
-    windCountdown.classList.add("countdown-pop");
-  }
+  clearWindCountdown();
+hideWindPauseOverlay();
+showWindResultPanel();
 
  
 }
+
+
 
 
 
@@ -1331,7 +1332,118 @@ let windCountdownTimer = null;
 
 function setWindGameState(nextState) {
   windGameState = nextState;
- 
+
+  updateWindPauseButtonIcon();
+}
+
+const WIND_PAUSE_ICON = "images/ui-btn-pause.png";
+const WIND_RESUME_ICON = "images/ui-btn-resume.png";
+
+let windGhostNeedsRespawnAfterPause = false;
+
+function updateWindPauseButtonIcon() {
+  if (!btnWindGameMenu) return;
+
+  const img = btnWindGameMenu.querySelector("img");
+  if (!img) return;
+
+  if (windGameState === "paused") {
+    img.src = WIND_RESUME_ICON;
+    img.alt = "Resume";
+    btnWindGameMenu.setAttribute("aria-label", "Resume");
+  } else {
+    img.src = WIND_PAUSE_ICON;
+    img.alt = "Pause";
+    btnWindGameMenu.setAttribute("aria-label", "Pause");
+  }
+}
+
+function showWindPauseOverlay() {
+  if (!windPauseOverlay) return;
+
+  windPauseOverlay.classList.remove("hidden");
+}
+
+function hideWindPauseOverlay() {
+  if (!windPauseOverlay) return;
+
+  windPauseOverlay.classList.add("hidden");
+}
+
+
+function pauseWindGame() {
+  if (windGameState !== "playing") return;
+
+  setWindGameState("paused");
+  showWindPauseOverlay();
+
+  if (windAnimFrame) {
+    cancelAnimationFrame(windAnimFrame);
+    windAnimFrame = null;
+  }
+
+  // 暫停 BGM，不歸零，Resume 時接著播
+  pauseAudio(windGameBgm);
+
+  // 放開所有操作鍵，避免恢復時仍保持上升
+  releaseAllWindButtons({ forceAttack: true });
+
+  // 如果剛好正在攻擊，先收掉劍氣與攻擊差分
+  if (windAttackActive || windAttackTimer) {
+    endWindAttack();
+  }
+
+  // 如果怪物剛被擊倒、正在等重生，暫停期間先停掉重生 timer
+  if (windGhostRespawnTimer) {
+    clearTimeout(windGhostRespawnTimer);
+    windGhostRespawnTimer = null;
+    windGhostNeedsRespawnAfterPause = !windGhostActive;
+  }
+}
+
+function resumeWindGame() {
+  if (windGameState !== "paused") return;
+
+  hideWindPauseOverlay();
+  hideWindResultPanel();
+
+  setWindGameState("playing");
+
+  // 接著播放小遊戲 BGM，不從頭播放
+  if (windGameAudioMode && windGameBgm) {
+    playAudioSafe(windGameBgm);
+  }
+
+  // 避免暫停時間被算進 dt，導致 Resume 瞬移
+  windLastTime = performance.now();
+
+  startWindGameLoop();
+
+  // 如果暫停前怪物正在等待重生，恢復後再重新安排重生
+  if (windGhostNeedsRespawnAfterPause && !windGhostActive) {
+    windGhostNeedsRespawnAfterPause = false;
+
+    windGhostRespawnTimer = setTimeout(() => {
+      if (windGameState !== "playing") return;
+      resetWindGhost();
+    }, 500);
+  }
+}
+
+function toggleWindGamePause(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  if (windGameState === "playing") {
+    pauseWindGame();
+    return;
+  }
+
+  if (windGameState === "paused") {
+    resumeWindGame();
+  }
 }
 
 function clearWindCountdown() {
@@ -2672,6 +2784,34 @@ function updateWindDebugHitboxes() {
 
 const windScoreEl = document.getElementById("windScore");
 
+const windResultPanel = document.getElementById("windResultPanel");
+const windResultScore = document.getElementById("windResultScore");
+const windResultBest = document.getElementById("windResultBest");
+const btnWindRetry = document.getElementById("btnWindRetry");
+const btnWindResultMenu = document.getElementById("btnWindResultMenu");
+
+if (btnWindRetry) {
+  btnWindRetry.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    resetWindGameSession();
+
+    setTimeout(() => {
+      startWindCountdown();
+    }, 300);
+  });
+}
+
+if (btnWindResultMenu) {
+  btnWindResultMenu.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    backToMenuFromWindGame();
+  });
+}
+
 let windScore = 0;
 
 function resetWindScore() {
@@ -2687,6 +2827,48 @@ function addWindScore(amount) {
 function updateWindScoreDisplay() {
   if (!windScoreEl) return;
   windScoreEl.textContent = windScore;
+}
+
+function showWindResultPanel() {
+  if (!windResultPanel) return;
+
+  const bestScore = saveWindBestScore(windScore);
+
+  if (windResultScore) {
+    windResultScore.textContent = windScore;
+  }
+
+  if (windResultBest) {
+    windResultBest.textContent = bestScore;
+  }
+
+  windResultPanel.classList.remove("hidden");
+}
+
+function hideWindResultPanel() {
+  if (!windResultPanel) return;
+
+  windResultPanel.classList.add("hidden");
+}
+
+const WIND_BEST_SCORE_KEY = "nanahara-wind-best-score-v1";
+
+function getWindBestScore() {
+  const raw = localStorage.getItem(WIND_BEST_SCORE_KEY);
+  const value = Number(raw);
+
+  return Number.isFinite(value) ? value : 0;
+}
+
+function saveWindBestScore(score) {
+  const best = getWindBestScore();
+
+  if (score > best) {
+    localStorage.setItem(WIND_BEST_SCORE_KEY, String(score));
+    return score;
+  }
+
+  return best;
 }
 
 
@@ -2707,6 +2889,8 @@ setWindButtonPressed(btnWindAttack, false);
 
 clearWindCountdown();
 clearWindDebugHitboxes();
+hideWindResultPanel();
+hideWindPauseOverlay();
 
   // 重置狀態
   setWindGameState("idle");
@@ -2717,6 +2901,8 @@ clearWindDebugHitboxes();
   windAttackActive = false;
 
   windAttackQueued = false;
+
+  windGhostNeedsRespawnAfterPause = false;
 
 if (windAttackTimer) {
   clearTimeout(windAttackTimer);
@@ -2844,25 +3030,24 @@ if (btnOmamoriMenu) {
   });
 }
 
-if (btnWindGameMenu) {
-  btnWindGameMenu.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+function backToMenuFromWindGame() {
+  resetWindGameSession();
+  switchToShrineBgm();
 
-    resetWindGameSession();
-    switchToShrineBgm();
-
-    if (typeof goToScreen === "function" && windGameScreen && menuScreen) {
-      goToScreen(windGameScreen, menuScreen, 600, async () => {
-        // 拉門關上後才恢復主畫面日夜模式
-        exitWindGamePerformanceMode();
-      });
-    } else {
-      windGameScreen.classList.add("hidden");
-      menuScreen.classList.remove("hidden");
+  if (typeof goToScreen === "function" && windGameScreen && menuScreen) {
+    goToScreen(windGameScreen, menuScreen, 600, async () => {
+      // 拉門關上後才恢復主畫面日夜模式
       exitWindGamePerformanceMode();
-    }
-  });
+    });
+  } else {
+    windGameScreen.classList.add("hidden");
+    menuScreen.classList.remove("hidden");
+    exitWindGamePerformanceMode();
+  }
+}
+
+if (btnWindGameMenu) {
+  btnWindGameMenu.addEventListener("click", toggleWindGamePause);
 }
 
 

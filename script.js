@@ -499,16 +499,24 @@ function switchToShrineBgm() {
 }
 
 function playWindSlashSound() {
-  if (!windSlashSound) return;
+  initWindSlashSoundPool();
 
-  windSlashSound.pause();
-  windSlashSound.currentTime = 0;
-  windSlashSound.volume = 0.9;
+  if (!windSlashSoundPool.length) return;
 
-  const p = windSlashSound.play();
-  if (p && typeof p.catch === "function") {
-    p.catch(() => {});
-  }
+  const audio = windSlashSoundPool[windSlashSoundPoolIndex];
+  windSlashSoundPoolIndex =
+    (windSlashSoundPoolIndex + 1) % windSlashSoundPool.length;
+
+  try {
+    audio.pause();
+    audio.currentTime = 0;
+    audio.volume = 0.9;
+
+    const p = audio.play();
+    if (p && typeof p.catch === "function") {
+      p.catch(() => {});
+    }
+  } catch {}
 }
 
 
@@ -660,6 +668,10 @@ function warmupWindGameDom() {
   if (windGameDomWarmedUp) return;
   windGameDomWarmedUp = true;
 
+  if (typeof initWindSlashSoundPool === "function") {
+  initWindSlashSoundPool();
+}
+
   if (typeof initWindSakuraTrail === "function") {
     initWindSakuraTrail();
   }
@@ -806,6 +818,25 @@ if (btnWindAttack) {
 
 function startWindAttack() {
   windAttackActive = true;
+
+const WIND_SLASH_SOUND_POOL_SIZE = 4;
+let windSlashSoundPool = [];
+let windSlashSoundPoolIndex = 0;
+
+function initWindSlashSoundPool() {
+  if (!windSlashSound) return;
+  if (windSlashSoundPool.length > 0) return;
+
+  windSlashSoundPool = [windSlashSound];
+
+  for (let i = 1; i < WIND_SLASH_SOUND_POOL_SIZE; i++) {
+    const clone = windSlashSound.cloneNode(true);
+    clone.preload = "auto";
+    clone.load();
+    windSlashSoundPool.push(clone);
+  }
+}
+
 
   playWindSlashSound();
 

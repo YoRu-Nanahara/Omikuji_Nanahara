@@ -994,11 +994,10 @@ function handleWindAttackInput(e) {
 
   showWindAttackButtonFeedback();
 
-  // 倒數中可以先按，但只預約攻擊
-  if (windGameState === "countdown") {
-    windAttackQueued = true;
-    return;
-  }
+if (windGameState === "countdown") {
+  // 倒數中只顯示按鈕反饋，不預約攻擊
+  return;
+}
 
   // 遊戲中才真的攻擊
   if (windGameState !== "playing") return;
@@ -1304,11 +1303,6 @@ function startWindPlaying() {
 
   applyWindPlayerPosition();
 
-  // 如果倒數時已經按過攻擊，Start 後立刻發動一次
-  if (windAttackQueued) {
-    windAttackQueued = false;
-    startWindAttack();
-  }
 
   startWindGameLoop();
 

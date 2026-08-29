@@ -409,6 +409,13 @@ function resetWindPlayerVisual() {
 }
 
 
+// ===== Volume Settings =====
+const SHRINE_BGM_VOLUME = 0.3;
+const UI_CLICK_VOLUME = 0.15;
+const DRAW_SOUND_VOLUME = 0.2;
+const WIND_GAME_BGM_VOLUME = 0.62;
+const WIND_SLASH_VOLUME = 1.0;
+
 /* =========================
    Wind Game Audio
 ========================= */
@@ -478,7 +485,7 @@ function playWindGameBgmFromStart() {
 
   windGameBgm.pause();
   windGameBgm.currentTime = 0;
-  windGameBgm.volume = 0.9;
+  windGameBgm.volume = WIND_GAME_BGM_VOLUME;
   windGameBgm.loop = true;
 
   playAudioSafe(windGameBgm);
@@ -495,7 +502,7 @@ function switchToShrineBgm() {
   stopWindGameBgm();
 
   if (shrineBgm) {
-    shrineBgm.volume = 1;
+    shrineBgm.volume = SHRINE_BGM_VOLUME;
     playAudioSafe(shrineBgm);
   }
 }
@@ -512,7 +519,7 @@ function playWindSlashSound() {
   try {
     audio.pause();
     audio.currentTime = 0;
-    audio.volume = 0.9;
+    audio.volume = WIND_SLASH_VOLUME;
 
     const p = audio.play();
     if (p && typeof p.catch === "function") {
@@ -1510,8 +1517,9 @@ function resumeWindGame() {
 
   // 接著播放小遊戲 BGM，不從頭播放
   if (windGameAudioMode && windGameBgm) {
-    playAudioSafe(windGameBgm);
-  }
+  windGameBgm.volume = WIND_GAME_BGM_VOLUME;
+  playAudioSafe(windGameBgm);
+}
 
   // 避免暫停時間被算進 dt，導致 Resume 瞬移
   windLastTime = performance.now();
@@ -2492,7 +2500,7 @@ let windRushGhostState = "idle";
 let windRushGhostCooldown = 0;
 let windRushGhostWarningTime = 0;
 
-const WIND_RUSH_GHOST_INTRO_DELAY = 40;
+const WIND_RUSH_GHOST_INTRO_DELAY = 60;
 
 const WIND_RUSH_GHOST_START_X = 1450;
 const WIND_RUSH_GHOST_END_X = -240;
@@ -4654,6 +4662,7 @@ let shuffleInterval;
 let drawn = false;
 let currentIndex = 0; // ⭐ 記住目前顯示的是哪一張籤
 
+
 const images = [
   "images/omikuji1.png",
   "images/omikuji2.png",
@@ -4834,10 +4843,10 @@ function unlockAudioOnce() {
       p.then(() => {
         bgm.pause();
         bgm.currentTime = 0;
-        bgm.volume = 1;
+      bgm.volume = SHRINE_BGM_VOLUME;
 
-        // ✅ 現在才正式淡入播放
-        playBGMWithFadeIn();
+// ✅ 現在才正式淡入播放
+playBGMWithFadeIn();
       }).catch(() => {
         // 如果還是被擋，就等下一次互動再試
         audioUnlocked = false;
@@ -4860,12 +4869,12 @@ function bindAudioUnlock() {
 function playUISound(opts = {}) {
   if (!drawSound) return;
 
-  const {
-    duck = false,
-    volume = 0.9,
-    duckVolume = 0.35,
-    duckMs = 220,
-  } = opts;
+ const {
+  duck = false,
+  volume = UI_CLICK_VOLUME,
+  duckVolume = 0.25,
+  duckMs = 220,
+} = opts;
 
   const prevBgmVol = bgm ? bgm.volume : 1;
 
@@ -4933,7 +4942,7 @@ const EXCLUDE_IDS = new Set([
       if (!shouldPlayForTarget(btn)) return;
 
       // ✅ 播 UI click（預設不 duck）
-      playUISound({ duck: false, volume: 0.9 });
+     playUISound({ duck: false, volume: UI_CLICK_VOLUME });
 
       // 如果你希望「特定按鈕」會 duck，可以用 data 屬性控制：
       // <button ... data-duck="1">
@@ -4974,11 +4983,13 @@ function playBGMWithFadeIn() {
       return;
     }
 
-    volume += 0.05;
-    if (volume >= 1) {
-      volume = 1;
+    volume += 0.04;
+
+    if (volume >= SHRINE_BGM_VOLUME) {
+      volume = SHRINE_BGM_VOLUME;
       clearInterval(fade);
     }
+
     bgm.volume = volume;
   }, 200);
 }
@@ -4991,12 +5002,12 @@ function playDrawSound() {
 
   drawSound.pause();
   drawSound.currentTime = 0;
-  drawSound.volume = 1;
+  drawSound.volume = DRAW_SOUND_VOLUME;
   drawSound.play().catch(() => {});
 
   setTimeout(() => {
-    if (bgm) bgm.volume = 1;
-  }, 400);
+  if (bgm) bgm.volume = SHRINE_BGM_VOLUME;
+}, 400);
 }
 
 /* ===== 點擊抽籤 ===== */

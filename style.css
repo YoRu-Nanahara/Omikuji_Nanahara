@@ -1352,8 +1352,34 @@ button {
   animation: windPauseFadeIn 220ms ease-out both;
 }
 
+body.wind-game-paused #sakura {
+  filter: brightness(0.52) saturate(0.85);
+}
+
+body.wind-game-active #sakura {
+  z-index: 50 !important;
+}
+
+.wind-pause-overlay {
+  z-index: 55;
+}
+
+
+.wind-pause-overlay {
+  z-index: 80;
+}
+
 #windGameScreen #btnWindGameMenu {
-  z-index: 70;
+  z-index: 100;
+}
+
+.wind-result-panel {
+  z-index: 110;
+}
+
+
+#windGameScreen #btnWindGameMenu {
+  z-index: 100;
 }
 
 .wind-pause-overlay.hidden {
@@ -1809,10 +1835,47 @@ body.night-mode #windGameScreen .wind-bonus-sakura {
    Wind Game Result Panel
 ========================= */
 
+
+/* 小遊戲期間，櫻花 canvas 會被 JS 搬進 #windGameScreen */
+#windGameScreen #sakura {
+  position: absolute;
+  inset: 0;
+  width: 1080px;
+  height: 1920px;
+  z-index: 25;
+  pointer-events: none;
+}
+
+/* 暫停 / Mission Complete 時，櫻花變暗 */
+body.wind-game-paused #sakura {
+  filter: brightness(0.52) saturate(0.85);
+}
+
+/* Pause 暗幕與文字 */
+.wind-pause-overlay {
+  z-index: 80;
+}
+
+/* 右上角 Pause / Resume 按鈕不要被暗幕蓋住 */
+#windGameScreen #btnWindGameMenu {
+  z-index: 100;
+}
+
+/* Mission Complete 面板最高 */
+.wind-result-panel {
+  z-index: 110;
+}
+
+
+.wind-result-panel {
+  z-index: 90;
+}
+
+
 .wind-result-panel {
   position: absolute;
   inset: 0;
-  z-index: 75;
+  z-index: 90;
 
   display: flex;
   align-items: center;
@@ -1838,6 +1901,8 @@ body.night-mode #windGameScreen .wind-bonus-sakura {
 .wind-result-card {
   width: 760px;
   min-height: 520px;
+
+  margin-top: -250px;
 
   padding: 58px 62px 54px;
   box-sizing: border-box;

@@ -524,6 +524,38 @@ function playWindSlashSound() {
 
 let windGameSavedNightMode = false;
 
+
+let sakuraOriginalParent = null;
+let sakuraOriginalNextSibling = null;
+
+function moveSakuraIntoWindGame() {
+  const canvas = document.getElementById("sakura");
+  if (!canvas || !windGameScreen) return;
+
+  if (!sakuraOriginalParent) {
+    sakuraOriginalParent = canvas.parentNode;
+    sakuraOriginalNextSibling = canvas.nextSibling;
+  }
+
+  if (canvas.parentNode !== windGameScreen) {
+    windGameScreen.appendChild(canvas);
+  }
+}
+
+function restoreSakuraFromWindGame() {
+  const canvas = document.getElementById("sakura");
+  if (!canvas || !sakuraOriginalParent) return;
+
+  if (canvas.parentNode === sakuraOriginalParent) return;
+
+  try {
+    sakuraOriginalParent.insertBefore(canvas, sakuraOriginalNextSibling);
+  } catch {
+    sakuraOriginalParent.appendChild(canvas);
+  }
+}
+
+
 function enterWindGamePerformanceMode() {
 
   // 記住進小遊戲前是不是夜晚模式
@@ -535,6 +567,8 @@ function enterWindGamePerformanceMode() {
   // 加一個小遊戲專用 class，方便 CSS 關掉不必要效果
   document.body.classList.add("wind-game-active");
 
+  moveSakuraIntoWindGame();
+
   if (typeof setSakuraWindMode === "function") {
   setSakuraWindMode("windGame");
 }
@@ -543,6 +577,8 @@ function enterWindGamePerformanceMode() {
 
 function exitWindGamePerformanceMode() {
   document.body.classList.remove("wind-game-active");
+
+  restoreSakuraFromWindGame();
 
   if (typeof setSakuraWindMode === "function") {
   setSakuraWindMode("normal");
@@ -1304,8 +1340,13 @@ windSlash.classList.add("hidden");
     windChinatsu.src = "images/wind-chinatsu-down.png";
   }
 
-  clearWindCountdown();
+clearWindCountdown();
 hideWindPauseOverlay();
+hideWindPauseButton();
+
+// Mission Complete 畫面中，櫻花也停止並變暗
+pauseSakuraForWindGame();
+
 showWindResultPanel();
 
  
@@ -1358,6 +1399,18 @@ function updateWindPauseButtonIcon() {
   }
 }
 
+function showWindPauseButton() {
+  if (!btnWindGameMenu) return;
+
+  btnWindGameMenu.classList.remove("hidden");
+}
+
+function hideWindPauseButton() {
+  if (!btnWindGameMenu) return;
+
+  btnWindGameMenu.classList.add("hidden");
+}
+
 function showWindPauseOverlay() {
   if (!windPauseOverlay) return;
 
@@ -1376,6 +1429,7 @@ function pauseWindGame() {
 
   setWindGameState("paused");
   showWindPauseOverlay();
+  pauseSakuraForWindGame();
 
   if (windAnimFrame) {
     cancelAnimationFrame(windAnimFrame);
@@ -1406,6 +1460,7 @@ function resumeWindGame() {
 
   hideWindPauseOverlay();
   hideWindResultPanel();
+  resumeSakuraForWindGame();
 
   setWindGameState("playing");
 
@@ -2891,6 +2946,8 @@ clearWindCountdown();
 clearWindDebugHitboxes();
 hideWindResultPanel();
 hideWindPauseOverlay();
+showWindPauseButton();
+resumeSakuraForWindGame();
 
   // 重置狀態
   setWindGameState("idle");
@@ -4524,6 +4581,9 @@ let windTime = 0;
 // windGame：小遊戲強風吹拂
 let sakuraWindMode = "normal";
 
+// 小遊戲暫停時凍結櫻花 canvas
+let sakuraPausedByWindGame = false;
+
 let sakuraWindPower = 1;
 let sakuraWindTargetPower = 1;
 
@@ -4585,7 +4645,22 @@ function setSakuraWindMode(mode) {
   }
 }
 
+function pauseSakuraForWindGame() {
+  sakuraPausedByWindGame = true;
+  document.body.classList.add("wind-game-paused");
+}
+
+function resumeSakuraForWindGame() {
+  sakuraPausedByWindGame = false;
+  document.body.classList.remove("wind-game-paused");
+}
+
 function updatePetals() {
+  if (sakuraPausedByWindGame) {
+    requestAnimationFrame(updatePetals);
+    return;
+  }
+
   const isWindGame = sakuraWindMode === "windGame";
 
   // 風力平滑變化，避免進出小遊戲時突然跳變

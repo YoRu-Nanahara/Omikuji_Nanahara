@@ -2145,6 +2145,69 @@ body.wind-game-paused #sakura {
   }
 }
 
+.wind-ghost-phase {
+  position: absolute;
+  left: 0;
+  top: 0;
+
+  width: 320px;
+  height: 320px;
+
+  z-index: 47;
+  pointer-events: none;
+
+  transform-origin: center center;
+  will-change: transform, opacity, filter;
+}
+
+.wind-ghost-phase.hidden {
+  display: none !important;
+}
+
+.wind-ghost-phase.phase-active {
+  animation: windPhaseGhostBlink 1.15s ease-in-out infinite;
+}
+
+.wind-ghost-phase.ghost-defeated {
+  animation: windPhaseGhostDefeated 0.2s ease-out forwards;
+}
+
+@keyframes windPhaseGhostBlink {
+  0% {
+    opacity: 1;
+    filter:
+      brightness(1.18)
+      drop-shadow(0 0 12px rgba(180, 210, 255, 0.72));
+  }
+
+  50% {
+    opacity: 0.28;
+    filter:
+      brightness(0.78)
+      drop-shadow(0 0 4px rgba(160, 180, 255, 0.28));
+  }
+
+  100% {
+    opacity: 1;
+    filter:
+      brightness(1.18)
+      drop-shadow(0 0 12px rgba(180, 210, 255, 0.72));
+  }
+}
+
+@keyframes windPhaseGhostDefeated {
+  from {
+    opacity: 1;
+    filter: brightness(1.5);
+  }
+
+  to {
+    opacity: 0;
+    filter: brightness(2.2);
+  }
+}
+
+
 /* =========================
    Wind Game Anti Select / Drag
 ========================= */

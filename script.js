@@ -807,17 +807,24 @@ if (btnWindFly) {
 
 if (btnWindAttack) {
   btnWindAttack.addEventListener("pointerdown", (e) => {
+    
+    handleWindAttackInput(e);
+  });
+
+  btnWindAttack.addEventListener("touchstart", (e) => {
+    
+    handleWindAttackInput(e);
+  }, { passive: false });
+
+  btnWindAttack.addEventListener("click", (e) => {
+    
+    handleWindAttackInput(e);
+  });
+
+  btnWindAttack.addEventListener("contextmenu", (e) => {
     e.preventDefault();
-
-    if (windGameState !== "playing") return;
-    if (windAttackActive) return;
-
-    startWindAttack();
   });
 }
-
-function startWindAttack() {
-  windAttackActive = true;
 
 const WIND_SLASH_SOUND_POOL_SIZE = 4;
 let windSlashSoundPool = [];
@@ -836,6 +843,34 @@ function initWindSlashSoundPool() {
     windSlashSoundPool.push(clone);
   }
 }
+
+
+const windControls = document.getElementById("windControls");
+
+if (windControls) {
+  windControls.addEventListener("pointerdown", (e) => {
+    const attackButton = e.target.closest("#btnWindAttack");
+
+    if (!attackButton) return;
+
+    
+    handleWindAttackInput(e);
+  });
+
+  windControls.addEventListener("touchstart", (e) => {
+    const attackButton = e.target.closest("#btnWindAttack");
+
+    if (!attackButton) return;
+
+   
+    handleWindAttackInput(e);
+  }, { passive: false });
+}
+
+function startWindAttack() {
+  windAttackActive = true;
+
+
 
 
   playWindSlashSound();
@@ -876,6 +911,7 @@ function initWindSlashSoundPool() {
 
 function endWindAttack() {
   windAttackActive = false;
+  windAttackQueued = false;
 
   if (windAttackTimer) {
     clearTimeout(windAttackTimer);
@@ -902,42 +938,113 @@ let windAttackActive = false;
 let windAttackTimer = null;
 let windGhostRespawnTimer = null;
 let windSlashAnimToggle = false;
+let windAttackQueued = false;
+
+let windAttackButtonFeedbackTimer = null;
 
 const WIND_GHOST_DEFEAT_SCORE = 10;
 
 function setWindButtonPressed(button, pressed) {
   if (!button) return;
 
+  const img = button.querySelector("img");
+
   if (pressed) {
     button.classList.add("is-pressed");
+
+    // 直接改圖片本體，避免某些瀏覽器對 button transform 反應不明顯
+    if (img) {
+      img.style.transform = "scale(0.82)";
+      img.style.filter = "brightness(0.82)";
+      img.style.opacity = "0.88";
+    }
   } else {
     button.classList.remove("is-pressed");
+
+    if (img) {
+      img.style.transform = "";
+      img.style.filter = "";
+      img.style.opacity = "";
+    }
   }
 }
 
-function releaseAllWindButtons() {
+function showWindAttackButtonFeedback() {
+  if (!btnWindAttack) return;
+
+  setWindButtonPressed(btnWindAttack, true);
+
+  if (windAttackButtonFeedbackTimer) {
+    clearTimeout(windAttackButtonFeedbackTimer);
+    windAttackButtonFeedbackTimer = null;
+  }
+
+  // 攻擊是點按型，所以至少保留一小段按下效果
+  windAttackButtonFeedbackTimer = setTimeout(() => {
+    setWindButtonPressed(btnWindAttack, false);
+    windAttackButtonFeedbackTimer = null;
+  }, 160);
+}
+
+function handleWindAttackInput(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  showWindAttackButtonFeedback();
+
+  // 倒數中可以先按，但只預約攻擊
+  if (windGameState === "countdown") {
+    windAttackQueued = true;
+    return;
+  }
+
+  // 遊戲中才真的攻擊
+  if (windGameState !== "playing") return;
+  if (windAttackActive) return;
+
+  startWindAttack();
+}
+
+function releaseAllWindButtons(options = {}) {
+  const forceAttack = options.forceAttack === true;
+
+  // 飛行鍵是長按型，pointerup 時要立刻放開
   setWindButtonPressed(btnWindFly, false);
-  setWindButtonPressed(btnWindAttack, false);
+  setWindFlyPressed(false);
+
+  // 攻擊鍵是點按型，平常不要被 pointerup 立刻清掉
+  // 讓 showWindAttackButtonFeedback() 的 120ms timer 自己處理
+  if (forceAttack) {
+    if (windAttackButtonFeedbackTimer) {
+      clearTimeout(windAttackButtonFeedbackTimer);
+      windAttackButtonFeedbackTimer = null;
+    }
+
+    setWindButtonPressed(btnWindAttack, false);
+  }
 }
 
 
 
 window.addEventListener("pointerup", () => {
-  releaseAllWindButtons();
+  // 一般放開手指時，只立刻放開飛行鍵
+  // 攻擊鍵反饋交給 120ms timer
+  releaseAllWindButtons({ forceAttack: false });
 });
 
 window.addEventListener("blur", () => {
-  releaseAllWindButtons();
-  setWindFlyPressed(false);
+  // 離開視窗時才強制清掉所有按鈕
+  releaseAllWindButtons({ forceAttack: true });
 });
 
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
-    releaseAllWindButtons();
-    setWindFlyPressed(false);
+    // 切到背景時才強制清掉所有按鈕
+    releaseAllWindButtons({ forceAttack: true });
   }
 });
-
 /* =========================
    Wind Game Physics
 ========================= */
@@ -1058,11 +1165,20 @@ function windGameOver() {
   if (windAnimFrame) {
     cancelAnimationFrame(windAnimFrame);
     windAnimFrame = null;
+
+    if (windAttackButtonFeedbackTimer) {
+  clearTimeout(windAttackButtonFeedbackTimer);
+  windAttackButtonFeedbackTimer = null;
+}
+
+setWindButtonPressed(btnWindAttack, false);
   }
 
   windFlyPressed = false;
 
   windAttackActive = false;
+
+  windAttackQueued = false;
 
 if (windAttackTimer) {
   clearTimeout(windAttackTimer);
@@ -1180,8 +1296,6 @@ function startWindCountdown() {
 function startWindPlaying() {
   setWindGameState("playing");
 
-  // 保險：如果倒數到 2 時沒播成功，正式開始時再試一次
-  // 如果已經播過，這裡不會重播
   playWindGameBgmFromStart();
 
   windPlayerY = 0;
@@ -1189,9 +1303,16 @@ function startWindPlaying() {
   windLastTime = performance.now();
 
   applyWindPlayerPosition();
+
+  // 如果倒數時已經按過攻擊，Start 後立刻發動一次
+  if (windAttackQueued) {
+    windAttackQueued = false;
+    startWindAttack();
+  }
+
   startWindGameLoop();
 
- 
+  // console.log("[WindGame] Start!");
 }
 
 
@@ -2479,6 +2600,13 @@ function resetWindGameSession() {
  if (windAnimFrame) {
   cancelAnimationFrame(windAnimFrame);
   windAnimFrame = null;
+
+  if (windAttackButtonFeedbackTimer) {
+  clearTimeout(windAttackButtonFeedbackTimer);
+  windAttackButtonFeedbackTimer = null;
+}
+
+setWindButtonPressed(btnWindAttack, false);
 }
 
 clearWindCountdown();
@@ -2491,6 +2619,8 @@ clearWindDebugHitboxes();
   windFlyPressed = false;
 
   windAttackActive = false;
+
+  windAttackQueued = false;
 
 if (windAttackTimer) {
   clearTimeout(windAttackTimer);

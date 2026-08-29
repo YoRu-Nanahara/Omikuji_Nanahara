@@ -1465,9 +1465,23 @@ button {
   bottom: 135px;
 }
 
-.wind-control-btn.is-pressed {
-  transform: scale(0.88);
-  filter: brightness(0.9);
+.wind-control-btn img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+
+  transform-origin: center center;
+  transition:
+    transform 100ms ease,
+    filter 100ms ease,
+    opacity 100ms ease;
+}
+
+.wind-control-btn.is-pressed img {
+  transform: scale(0.82);
+  filter: brightness(0.82);
+  opacity: 0.88;
 }
 
 /* =========================

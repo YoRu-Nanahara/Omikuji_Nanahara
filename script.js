@@ -899,6 +899,79 @@ function initWindSlashSoundPool() {
   }
 }
 
+const WIND_KEY_FLY = new Set(["ArrowUp"]);
+const WIND_KEY_ATTACK = new Set(["KeyZ"]);
+
+let windKeyboardFlyPressed = false;
+
+
+function isWindGameKeyboardActive() {
+  return (
+    windGameScreen &&
+    !windGameScreen.classList.contains("hidden") &&
+    (windGameState === "countdown" || windGameState === "playing")
+  );
+}
+
+function shouldIgnoreWindKeyboardInput(e) {
+  const target = e.target;
+
+  if (!target) return false;
+
+  const tagName = target.tagName;
+
+  return (
+    tagName === "INPUT" ||
+    tagName === "TEXTAREA" ||
+    tagName === "SELECT" ||
+    target.isContentEditable
+  );
+}
+
+document.addEventListener("keydown", (e) => {
+  if (!isWindGameKeyboardActive()) return;
+  if (shouldIgnoreWindKeyboardInput(e)) return;
+
+  // 方向鍵上：長按飛行
+  if (WIND_KEY_FLY.has(e.code)) {
+    e.preventDefault();
+
+    if (!windKeyboardFlyPressed) {
+      windKeyboardFlyPressed = true;
+
+      setWindButtonPressed(btnWindFly, true);
+      setWindFlyPressed(true);
+    }
+
+    return;
+  }
+
+  // Z：攻擊
+  if (WIND_KEY_ATTACK.has(e.code)) {
+    e.preventDefault();
+
+    // 避免長按 Z 時連續觸發攻擊
+    if (e.repeat) return;
+
+    handleWindAttackInput(e);
+  }
+});
+
+document.addEventListener("keyup", (e) => {
+  if (!WIND_KEY_FLY.has(e.code)) return;
+
+  // 不在小遊戲中、而且鍵盤飛行也沒有被按住時，不要攔截方向鍵
+  if (!windKeyboardFlyPressed && !isWindGameKeyboardActive()) return;
+
+  e.preventDefault();
+
+  windKeyboardFlyPressed = false;
+
+  setWindButtonPressed(btnWindFly, false);
+  setWindFlyPressed(false);
+});
+
+
 
 const windControls = document.getElementById("windControls");
 
@@ -1068,11 +1141,12 @@ function releaseAllWindButtons(options = {}) {
   // 飛行鍵只有在明確 forceFly 時才釋放
   // 這樣攻擊鍵 pointerup 不會中斷正在按住的飛行
   if (forceFly) {
-    windFlyPointerId = null;
+  windKeyboardFlyPressed = false;
+  windFlyPointerId = null;
 
-    setWindButtonPressed(btnWindFly, false);
-    setWindFlyPressed(false);
-  }
+  setWindButtonPressed(btnWindFly, false);
+  setWindFlyPressed(false);
+}
 
   // 攻擊鍵是點按型，平常不要被 pointerup 立刻清掉
   // 讓 showWindAttackButtonFeedback() 的 timer 自己處理
@@ -1394,9 +1468,10 @@ function windGameOver(reason = "crash") {
 
   setWindButtonPressed(btnWindAttack, false);
 
-  windFlyPressed = false;
-  windAttackActive = false;
-  windAttackQueued = false;
+  windKeyboardFlyPressed = false;
+windFlyPressed = false;
+windAttackActive = false;
+windAttackQueued = false;
 
   // 停止怪物等待重生狀態
   windGhostWaitingRespawn = false;
@@ -3972,7 +4047,8 @@ resumeSakuraForWindGame();
   windGameOverReason = "crash";
 
   // 重置操作狀態
-  windFlyPressed = false;
+  windKeyboardFlyPressed = false;
+windFlyPressed = false;
 
   windAttackActive = false;
 

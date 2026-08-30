@@ -243,29 +243,35 @@
 </div>
 
 <div id="windResultPanel" class="wind-result-panel hidden" aria-live="polite">
-  <div class="wind-result-card">
-  
-    <div class="wind-result-title">Mission Complete</div>
+  <div class="wind-result-card wind-result-image-card">
+    <img
+      id="windResultImage"
+      class="wind-result-image"
+      src="images/wind-result-crash.png"
+      alt="Mission Complete"
+    >
 
-    <div class="wind-result-score-row">
-      <span>Score</span>
-      <strong id="windResultScore">0</strong>
-    </div>
+    <div class="wind-result-score-overlay">
+      <div class="wind-result-score-row">
+        <span>Score</span>
+        <strong id="windResultScore">0</strong>
+      </div>
 
-    <div class="wind-result-score-row wind-result-best">
-      <span>Best</span>
-      <strong id="windResultBest">0</strong>
+      <div class="wind-result-score-row wind-result-best">
+        <span>Best</span>
+        <strong id="windResultBest">0</strong>
+      </div>
     </div>
 
     <div class="wind-result-actions wind-result-icon-actions">
-  <button id="btnWindRetry" class="focus-btn wind-result-icon-btn" type="button" aria-label="Retry">
-    <img src="images/ui-btn-back.png" alt="Retry">
-  </button>
+      <button id="btnWindRetry" class="focus-btn wind-result-icon-btn" type="button" aria-label="Retry">
+        <img src="images/ui-btn-back.png" alt="Retry">
+      </button>
 
-  <button id="btnWindResultMenu" class="focus-btn wind-result-icon-btn" type="button" aria-label="Back to Menu">
-    <img src="images/ui-btn-menu.png" alt="Menu">
-  </button>
-</div>
+      <button id="btnWindResultMenu" class="focus-btn wind-result-icon-btn" type="button" aria-label="Back to Menu">
+        <img src="images/ui-btn-menu.png" alt="Menu">
+      </button>
+    </div>
   </div>
 </div>
 

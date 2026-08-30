@@ -1364,7 +1364,7 @@ function updateWindPlayerPhysics(dt) {
   if (windPlayerY > WIND_BOTTOM_LIMIT) {
     windPlayerY = WIND_BOTTOM_LIMIT;
     applyWindPlayerPosition();
-    windGameOver();
+    windGameOver("crash");
   }
 }
 
@@ -1372,10 +1372,13 @@ function updateWindPlayerPhysics(dt) {
 
 
 
-function windGameOver() {
+function windGameOver(reason = "crash") {
   if (windGameState === "gameover") return;
 
+  windGameOverReason = reason;
+
   setWindGameState("gameover");
+  
 
   stopWindGameBgm();
 
@@ -3403,7 +3406,7 @@ function updateWindObstacleCollision() {
 
   for (const obstacleRect of obstacleRects) {
     if (isWindRectOverlap(playerRect, obstacleRect)) {
-      windGameOver();
+      windGameOver("crash");
       return;
     }
   }
@@ -3531,7 +3534,7 @@ function updateWindGhostCollision() {
   if (!ghostRect) return;
 
   if (isWindRectOverlap(playerRect, ghostRect)) {
-    windGameOver();
+    windGameOver("ghost");
   }
 }
 
@@ -3552,7 +3555,7 @@ function updateWindRushGhostCollision() {
   if (!rushRect) return;
 
   if (isWindRectOverlap(playerRect, rushRect)) {
-    windGameOver();
+   windGameOver("ghost");
   }
 }
 
@@ -3573,7 +3576,7 @@ function updateWindPhaseGhostCollision() {
   if (!phaseRect) return;
 
   if (isWindRectOverlap(playerRect, phaseRect)) {
-    windGameOver();
+    windGameOver("ghost");
   }
 }
 
@@ -3834,8 +3837,20 @@ const windScoreEl = document.getElementById("windScore");
 const windResultPanel = document.getElementById("windResultPanel");
 const windResultScore = document.getElementById("windResultScore");
 const windResultBest = document.getElementById("windResultBest");
+
+const windResultImage = document.getElementById("windResultImage");
+
+const WIND_RESULT_IMAGE = {
+  crash: "images/wind-result-ghost.png",
+  ghost: "images/wind-result-crash.png",
+};
+
+let windGameOverReason = "crash";
+
 const btnWindRetry = document.getElementById("btnWindRetry");
 const btnWindResultMenu = document.getElementById("btnWindResultMenu");
+
+
 
 if (btnWindRetry) {
   btnWindRetry.addEventListener("click", (e) => {
@@ -3875,6 +3890,13 @@ function updateWindScoreDisplay() {
 
 function showWindResultPanel() {
   if (!windResultPanel) return;
+
+  if (windResultImage) {
+    windResultImage.src =
+      windGameOverReason === "ghost"
+        ? WIND_RESULT_IMAGE.ghost
+        : WIND_RESULT_IMAGE.crash;
+  }
 
   const bestScore = saveWindBestScore(windScore);
 
@@ -3946,6 +3968,8 @@ resumeSakuraForWindGame();
 
   // 重置狀態
   setWindGameState("idle");
+
+  windGameOverReason = "crash";
 
   // 重置操作狀態
   windFlyPressed = false;

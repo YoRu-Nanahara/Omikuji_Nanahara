@@ -817,6 +817,9 @@ document.querySelectorAll("#windGameScreen img").forEach((img) => {
 
 let windFlyPressed = false;
 
+// 記住目前是哪一根手指 / 哪個 pointer 正在按住飛行鍵
+let windFlyPointerId = null;
+
 function setWindFlyPressed(pressed) {
   windFlyPressed = pressed;
 
@@ -832,6 +835,9 @@ function setWindFlyPressed(pressed) {
 if (btnWindFly) {
   btnWindFly.addEventListener("pointerdown", (e) => {
     e.preventDefault();
+    e.stopPropagation();
+
+    windFlyPointerId = e.pointerId;
 
     if (btnWindFly.setPointerCapture && e.pointerId !== undefined) {
       try {
@@ -844,7 +850,22 @@ if (btnWindFly) {
   });
 
   function releaseWindFly(e) {
-    if (e) e.preventDefault();
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // 只釋放「原本按住飛行鍵的那根手指」
+      // 其他手指，例如攻擊鍵 pointerup，不可以中斷飛行
+      if (
+        windFlyPointerId !== null &&
+        e.pointerId !== undefined &&
+        e.pointerId !== windFlyPointerId
+      ) {
+        return;
+      }
+    }
+
+    windFlyPointerId = null;
 
     setWindButtonPressed(btnWindFly, false);
     setWindFlyPressed(false);
@@ -856,27 +877,6 @@ if (btnWindFly) {
 
   // 長按時只阻止選單，不要釋放風術
   btnWindFly.addEventListener("contextmenu", (e) => {
-    e.preventDefault();
-  });
-}
-
-if (btnWindAttack) {
-  btnWindAttack.addEventListener("pointerdown", (e) => {
-    
-    handleWindAttackInput(e);
-  });
-
-  btnWindAttack.addEventListener("touchstart", (e) => {
-    
-    handleWindAttackInput(e);
-  }, { passive: false });
-
-  btnWindAttack.addEventListener("click", (e) => {
-    
-    handleWindAttackInput(e);
-  });
-
-  btnWindAttack.addEventListener("contextmenu", (e) => {
     e.preventDefault();
   });
 }
@@ -1063,13 +1063,19 @@ if (windGameState === "countdown") {
 
 function releaseAllWindButtons(options = {}) {
   const forceAttack = options.forceAttack === true;
+  const forceFly = options.forceFly === true;
 
-  // 飛行鍵是長按型，pointerup 時要立刻放開
-  setWindButtonPressed(btnWindFly, false);
-  setWindFlyPressed(false);
+  // 飛行鍵只有在明確 forceFly 時才釋放
+  // 這樣攻擊鍵 pointerup 不會中斷正在按住的飛行
+  if (forceFly) {
+    windFlyPointerId = null;
+
+    setWindButtonPressed(btnWindFly, false);
+    setWindFlyPressed(false);
+  }
 
   // 攻擊鍵是點按型，平常不要被 pointerup 立刻清掉
-  // 讓 showWindAttackButtonFeedback() 的 120ms timer 自己處理
+  // 讓 showWindAttackButtonFeedback() 的 timer 自己處理
   if (forceAttack) {
     if (windAttackButtonFeedbackTimer) {
       clearTimeout(windAttackButtonFeedbackTimer);
@@ -1082,21 +1088,35 @@ function releaseAllWindButtons(options = {}) {
 
 
 
-window.addEventListener("pointerup", () => {
-  // 一般放開手指時，只立刻放開飛行鍵
-  // 攻擊鍵反饋交給 120ms timer
-  releaseAllWindButtons({ forceAttack: false });
+window.addEventListener("pointerup", (e) => {
+  // 只有放開「飛行鍵那根手指」時，才停止飛行
+  if (
+    windFlyPointerId !== null &&
+    e.pointerId !== undefined &&
+    e.pointerId === windFlyPointerId
+  ) {
+    releaseAllWindButtons({
+      forceFly: true,
+      forceAttack: false,
+    });
+  }
 });
 
 window.addEventListener("blur", () => {
   // 離開視窗時才強制清掉所有按鈕
-  releaseAllWindButtons({ forceAttack: true });
+  releaseAllWindButtons({
+    forceFly: true,
+    forceAttack: true,
+  });
 });
 
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     // 切到背景時才強制清掉所有按鈕
-    releaseAllWindButtons({ forceAttack: true });
+    releaseAllWindButtons({
+      forceFly: true,
+      forceAttack: true,
+    });
   }
 });
 /* =========================
@@ -1435,6 +1455,24 @@ let windGameState = "idle";
 // gameover  結束
 
 let windCountdownTimer = null;
+
+let windRetryStartTimer = null;
+
+function clearWindRetryStartTimer() {
+  if (windRetryStartTimer) {
+    clearTimeout(windRetryStartTimer);
+    windRetryStartTimer = null;
+  }
+}
+
+function scheduleWindRetryStart() {
+  clearWindRetryStartTimer();
+
+  windRetryStartTimer = setTimeout(() => {
+    windRetryStartTimer = null;
+    startWindCountdown();
+  }, 300);
+}
 
 function setWindGameState(nextState) {
   windGameState = nextState;
@@ -2910,9 +2948,35 @@ function queueWindPhaseGhostRespawnAfterDefeat() {
 }
 
 
+const windDefeatEffectFrames = new Map();
+
+function cancelWindGhostDefeatEffect(el) {
+  if (!el) return;
+
+  const frameId = windDefeatEffectFrames.get(el);
+
+  if (frameId) {
+    cancelAnimationFrame(frameId);
+    windDefeatEffectFrames.delete(el);
+  }
+
+  el.style.opacity = "";
+  el.style.filter = "";
+  el.style.transition = "";
+}
+
+function cancelAllWindGhostDefeatEffects() {
+  cancelWindGhostDefeatEffect(windGhost);
+  cancelWindGhostDefeatEffect(windGhostRush);
+  cancelWindGhostDefeatEffect(windGhostPhase);
+}
+
 
 function playWindGhostDefeatEffect(el, options = {}) {
   if (!el) return;
+
+  // 防止同一隻怪物上一段擊殺動畫還沒結束又被重置 / 重新使用
+  cancelWindGhostDefeatEffect(el);
 
   const {
     duration = 300,
@@ -3012,10 +3076,11 @@ const opacity = safeStartOpacity * (1 - fadeT);
       `translate(-50%, -50%) ` +
       `rotate(${twitchRotate}deg)`;
 
-    if (t < 1) {
-      requestAnimationFrame(frame);
-      return;
-    }
+   if (t < 1) {
+  const frameId = requestAnimationFrame(frame);
+  windDefeatEffectFrames.set(el, frameId);
+  return;
+}
 
     el.classList.add("hidden");
 
@@ -3023,14 +3088,18 @@ const opacity = safeStartOpacity * (1 - fadeT);
     el.style.filter = "";
     el.style.transition = "";
 
+    windDefeatEffectFrames.delete(el);
+
     setWindElementPosition(el, resetX, resetY);
+    
 
     if (typeof onComplete === "function") {
       onComplete();
     }
   }
 
-  requestAnimationFrame(frame);
+  const firstFrameId = requestAnimationFrame(frame);
+windDefeatEffectFrames.set(el, firstFrameId);
 }
 
 function getWindLogicalElementRect(el, width, height) {
@@ -3774,10 +3843,7 @@ if (btnWindRetry) {
     e.stopPropagation();
 
     resetWindGameSession();
-
-    setTimeout(() => {
-      startWindCountdown();
-    }, 300);
+    scheduleWindRetryStart();
   });
 }
 
@@ -3852,10 +3918,18 @@ function saveWindBestScore(score) {
 
 
 function resetWindGameSession() {
+
+  clearWindRetryStartTimer();
+  clearWindCountdown();
+  cancelAllWindGhostDefeatEffects();
+  stopWindPlayerCountdownFloat(true);
+
   // 停止遊戲 loop
  if (windAnimFrame) {
   cancelAnimationFrame(windAnimFrame);
   windAnimFrame = null;
+
+}
 
   if (windAttackButtonFeedbackTimer) {
   clearTimeout(windAttackButtonFeedbackTimer);
@@ -3863,9 +3937,7 @@ function resetWindGameSession() {
 }
 
 setWindButtonPressed(btnWindAttack, false);
-}
 
-clearWindCountdown();
 clearWindDebugHitboxes();
 hideWindResultPanel();
 hideWindPauseOverlay();

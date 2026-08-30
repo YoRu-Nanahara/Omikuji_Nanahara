@@ -1660,12 +1660,7 @@ body.wind-game-active #sakura {
   top: 0;
 }
 
-/* 夜晚時給共用障礙物一點微光 */
-body.night-mode #windGameScreen .wind-obstacle {
-  filter:
-    drop-shadow(0 0 10px rgba(255, 230, 180, 0.45))
-    drop-shadow(0 0 22px rgba(180, 210, 255, 0.28));
-}
+
 
 /* =========================
    Wind Game Sakura Trail
@@ -2593,5 +2588,32 @@ body.wind-game-paused #sakura {
 
 .wind-result-panel.hidden .wind-result-image-card,
 .wind-result-panel.hidden .wind-result-icon-actions {
+  animation: none !important;
+}
+
+
+/* ===== Wind Game: disable obstacle glow for performance ===== */
+
+#windObstacleGroup,
+#windObstacleTop,
+#windObstacleBottom,
+#windGameScreen .wind-obstacle,
+body.night-mode #windGameScreen .wind-obstacle,
+body.wind-game-active #windGameScreen .wind-obstacle,
+body.wind-game-active.night-mode #windGameScreen .wind-obstacle {
+  filter: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  animation: none !important;
+}
+
+/* ===== Wind Sakura Glow: image-based glow only ===== */
+
+#windGameScreen .wind-route-sakura,
+#windGameScreen .wind-bonus-sakura,
+#windGameScreen .wind-route-gold,
+#windGameScreen .wind-bonus-gold {
+  filter: none !important;
+  box-shadow: none !important;
   animation: none !important;
 }

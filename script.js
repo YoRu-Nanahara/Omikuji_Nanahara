@@ -157,6 +157,12 @@ const assets = [
   "images/sakura1.png",
   "images/sakura2.png",
   "images/sakura3.png",
+    "images/maple1.png",
+  "images/maple2.png",
+  "images/maple3.png",
+  
+  "images/menu-bg-day-autumn.jpg",
+"images/menu-bg-night-autumn.jpg",
 
 ];
 
@@ -5689,11 +5695,41 @@ let sakuraWindTargetPower = 1;
 const SAKURA_WIND_NORMAL = 1;
 const SAKURA_WIND_GAME = 3.2;
 
-const sakuraImages = [
-  "images/sakura1.png",
-  "images/sakura2.png",
-  "images/sakura3.png"
-];
+const SHRINE_PETAL_IMAGES = {
+  spring: [
+    "images/sakura1.png",
+    "images/sakura2.png",
+    "images/sakura3.png",
+  ],
+
+  autumn: [
+    "images/maple1.png",
+    "images/maple2.png",
+    "images/maple3.png",
+  ],
+};
+
+
+
+function getShrinePetalSeason() {
+  const month = new Date().getMonth() + 1;
+
+  // 9～11 月顯示楓葉
+  if (month >= 9 && month <= 11) {
+    return "autumn";
+  }
+
+  return "spring";
+}
+
+function updateShrineSeasonMode() {
+  const season = getShrinePetalSeason();
+
+  document.body.classList.toggle("autumn-mode", season === "autumn");
+}
+
+const shrinePetalSeason = getShrinePetalSeason();
+const sakuraImages = SHRINE_PETAL_IMAGES[getShrinePetalSeason()];
 
 const loadedPetals = [];
 let petals = [];
@@ -5720,7 +5756,11 @@ function startPetals() {
 }
 
 function createPetal(randomY = false) {
-  const size = 20 + Math.random() * 40;
+  const size =
+    shrinePetalSeason === "autumn"
+      ? 44 + Math.random() * 54
+      : 20 + Math.random() * 40;
+
   return {
     img: loadedPetals[Math.floor(Math.random() * loadedPetals.length)],
     x: Math.random() * sakuraCanvas.width,
@@ -5950,6 +5990,8 @@ function updateDayNightMode() {
   } else {
     document.body.classList.remove("night-mode");
   }
+
+  updateShrineSeasonMode();
 }
 
 // 進站時先判斷一次

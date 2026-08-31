@@ -2617,3 +2617,33 @@ body.wind-game-active.night-mode #windGameScreen .wind-obstacle {
   box-shadow: none !important;
   animation: none !important;
 }
+
+/* ===== Seasonal Menu Background: Autumn Day / Night ===== */
+
+/* 秋季白天背景圖 */
+body.autumn-mode .menu-background.day {
+  background-image: url("images/menu-bg-day-autumn.jpg") !important;
+}
+
+/* 秋季夜晚背景圖 */
+body.autumn-mode .menu-background.night {
+  background-image: url("images/menu-bg-night-autumn.jpg") !important;
+}
+
+/* 秋季白天：顯示 day，隱藏 night */
+body.autumn-mode:not(.night-mode) .menu-background.day {
+  display: block !important;
+}
+
+body.autumn-mode:not(.night-mode) .menu-background.night {
+  display: none !important;
+}
+
+/* 秋季夜晚：隱藏 day，顯示 night */
+body.autumn-mode.night-mode .menu-background.day {
+  display: none !important;
+}
+
+body.autumn-mode.night-mode .menu-background.night {
+  display: block !important;
+}
